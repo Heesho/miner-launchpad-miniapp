@@ -1,0 +1,128 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { sdk } from "@farcaster/miniapp-sdk";
+import { useAccount, useConnect } from "wagmi";
+import { base } from "wagmi/chains";
+import { SDK_READY_TIMEOUT_MS } from "@/lib/constants";
+
+export type FarcasterUser = {
+  fid: number;
+  username?: string;
+  displayName?: string;
+  pfpUrl?: string;
+};
+
+export type FarcasterContext = {
+  user?: FarcasterUser;
+};
+
+/**
+ * Hook to manage Farcaster Mini App context, SDK ready state, and wallet auto-connection
+ */
+export function useFarcaster() {
+  const readyRef = useRef(false);
+  const autoConnectAttempted = useRef(false);
+  const [context, setContext] = useState<FarcasterContext | null>(null);
+
+  const { address, isConnected } = useAccount();
+  const { connectors, connectAsync, isPending: isConnecting } = useConnect();
+  const primaryConnector = connectors[0];
+
+  // Fetch Farcaster context
+  useEffect(() => {
+    let cancelled = false;
+    const hydrateContext = async () => {
+      try {
+        const ctx = (await (sdk as unknown as {
+          context: Promise<FarcasterContext> | FarcasterContext;
+        }).context) as FarcasterContext;
+        if (!cancelled) {
+          setContext(ctx);
+        }
+      } catch {
+        if (!cancelled) setContext(null);
+      }
+    };
+    hydrateContext();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // SDK ready
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!readyRef.current) {
+        readyRef.current = true;
+        sdk.actions.ready().catch(() => {});
+      }
+    }, SDK_READY_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  // Auto-connect wallet
+  useEffect(() => {
+    if (
+      autoConnectAttempted.current ||
+      isConnected ||
+      !primaryConnector ||
+      isConnecting
+    ) {
+      return;
+    }
+    autoConnectAttempted.current = true;
+    connectAsync({
+      connector: primaryConnector,
+      chainId: base.id,
+    }).catch(() => {});
+  }, [connectAsync, isConnected, isConnecting, primaryConnector]);
+
+  // Connect wallet manually
+  const connect = useCallback(async () => {
+    if (!primaryConnector) {
+      throw new Error("Wallet connector not available");
+    }
+    const result = await connectAsync({
+      connector: primaryConnector,
+      chainId: base.id,
+    });
+    return result.accounts[0];
+  }, [connectAsync, primaryConnector]);
+
+  return {
+    context,
+    user: context?.user ?? null,
+    address,
+    isConnected,
+    isConnecting,
+    connect,
+    primaryConnector,
+  };
+}
+
+/**
+ * Get user display name from Farcaster context
+ */
+export function getUserDisplayName(user: FarcasterUser | null | undefined): string {
+  return user?.displayName ?? user?.username ?? "Farcaster user";
+}
+
+/**
+ * Get user handle (@username or fid) from Farcaster context
+ */
+export function getUserHandle(user: FarcasterUser | null | undefined): string {
+  if (user?.username) return `@${user.username}`;
+  if (user?.fid) return `fid ${user.fid}`;
+  return "";
+}
+
+/**
+ * Get initials from a label (for avatar fallback)
+ */
+export function initialsFrom(label?: string): string {
+  if (!label) return "";
+  const stripped = label.replace(/[^a-zA-Z0-9]/g, "");
+  if (!stripped) return label.slice(0, 2).toUpperCase();
+  return stripped.slice(0, 2).toUpperCase();
+}

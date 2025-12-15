@@ -1,32 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { sdk } from "@farcaster/miniapp-sdk";
-import { useAccount, useConnect } from "wagmi";
-import { base } from "wagmi/chains";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NavBar } from "@/components/nav-bar";
 import { RigCard } from "@/components/rig-card";
 import { useExploreRigs, type SortOption } from "@/hooks/useAllRigs";
+import { useFarcaster, getUserDisplayName, getUserHandle, initialsFrom } from "@/hooks/useFarcaster";
 import { cn, getEthPrice } from "@/lib/utils";
-
-type MiniAppContext = {
-  user?: {
-    fid: number;
-    username?: string;
-    displayName?: string;
-    pfpUrl?: string;
-  };
-};
-
-const initialsFrom = (label?: string) => {
-  if (!label) return "";
-  const stripped = label.replace(/[^a-zA-Z0-9]/g, "");
-  if (!stripped) return label.slice(0, 2).toUpperCase();
-  return stripped.slice(0, 2).toUpperCase();
-};
+import { DEFAULT_ETH_PRICE_USD, PRICE_REFETCH_INTERVAL_MS } from "@/lib/constants";
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "trending", label: "Bump" },
@@ -35,52 +18,15 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ];
 
 export default function ExplorePage() {
-  const readyRef = useRef(false);
-  const autoConnectAttempted = useRef(false);
-  const [context, setContext] = useState<MiniAppContext | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("trending");
   const [searchQuery, setSearchQuery] = useState("");
-  const [ethUsdPrice, setEthUsdPrice] = useState<number>(3500);
+  const [ethUsdPrice, setEthUsdPrice] = useState<number>(DEFAULT_ETH_PRICE_USD);
 
-  // Get wallet connection
-  const { address, isConnected } = useAccount();
-  const { connectors, connectAsync, isPending: isConnecting } = useConnect();
-  const primaryConnector = connectors[0];
+  // Farcaster context and wallet connection
+  const { user, address } = useFarcaster();
 
   // Get rigs data
   const { rigs, isLoading } = useExploreRigs(sortBy, searchQuery, address);
-
-  // Fetch Farcaster context
-  useEffect(() => {
-    let cancelled = false;
-    const hydrateContext = async () => {
-      try {
-        const ctx = (await (sdk as unknown as {
-          context: Promise<MiniAppContext> | MiniAppContext;
-        }).context) as MiniAppContext;
-        if (!cancelled) {
-          setContext(ctx);
-        }
-      } catch {
-        if (!cancelled) setContext(null);
-      }
-    };
-    hydrateContext();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // SDK ready
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!readyRef.current) {
-        readyRef.current = true;
-        sdk.actions.ready().catch(() => {});
-      }
-    }, 1200);
-    return () => clearTimeout(timeout);
-  }, []);
 
   // Fetch ETH price
   useEffect(() => {
@@ -89,35 +35,13 @@ export default function ExplorePage() {
       setEthUsdPrice(price);
     };
     fetchPrice();
-    const interval = setInterval(fetchPrice, 60_000);
+    const interval = setInterval(fetchPrice, PRICE_REFETCH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-connect wallet
-  useEffect(() => {
-    if (
-      autoConnectAttempted.current ||
-      isConnected ||
-      !primaryConnector ||
-      isConnecting
-    ) {
-      return;
-    }
-    autoConnectAttempted.current = true;
-    connectAsync({
-      connector: primaryConnector,
-      chainId: base.id,
-    }).catch(() => {});
-  }, [connectAsync, isConnected, isConnecting, primaryConnector]);
-
-  const userDisplayName =
-    context?.user?.displayName ?? context?.user?.username ?? "Farcaster user";
-  const userHandle = context?.user?.username
-    ? `@${context.user.username}`
-    : context?.user?.fid
-      ? `fid ${context.user.fid}`
-      : "";
-  const userAvatarUrl = context?.user?.pfpUrl ?? null;
+  const userDisplayName = getUserDisplayName(user);
+  const userHandle = getUserHandle(user);
+  const userAvatarUrl = user?.pfpUrl ?? null;
 
   return (
     <main className="flex h-screen w-screen justify-center overflow-hidden bg-black font-mono text-white">
@@ -132,7 +56,7 @@ export default function ExplorePage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-2xl font-bold tracking-wide">EXPLORE</h1>
-            {context?.user ? (
+            {user ? (
               <div className="flex items-center gap-2 rounded-full bg-black px-3 py-1">
                 <Avatar className="h-8 w-8 border border-zinc-800">
                   <AvatarImage

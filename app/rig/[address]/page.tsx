@@ -3,19 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { sdk } from "@farcaster/miniapp-sdk";
 import { ArrowLeft, ArrowDownUp, Copy, Check } from "lucide-react";
 import Link from "next/link";
 import {
-  useAccount,
   useBalance,
-  useConnect,
   useReadContract,
   useSendTransaction,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { base } from "wagmi/chains";
 import { formatEther, formatUnits, parseUnits, type Address, zeroAddress } from "viem";
 
 import { NavBar } from "@/components/nav-bar";
@@ -25,12 +21,20 @@ import { useRigState, useRigInfo } from "@/hooks/useRigState";
 import { useUserRigStats } from "@/hooks/useUserRigStats";
 import { usePriceHistory } from "@/hooks/usePriceHistory";
 import { useMineHistory } from "@/hooks/useMineHistory";
+import { useFarcaster } from "@/hooks/useFarcaster";
 import { CONTRACT_ADDRESSES, MULTICALL_ABI, ERC20_ABI, NATIVE_ETH_ADDRESS } from "@/lib/contracts";
 import { getEthPrice, getDonutPrice, cn } from "@/lib/utils";
 import { useSwapPrice, useSwapQuote, formatBuyAmount } from "@/hooks/useSwapQuote";
-
-const DEADLINE_BUFFER_SECONDS = 15 * 60;
-const TOKEN_DECIMALS = 18;
+import {
+  DEFAULT_CHAIN_ID,
+  DEFAULT_ETH_PRICE_USD,
+  DEFAULT_DONUT_PRICE_USD,
+  PRICE_REFETCH_INTERVAL_MS,
+  STALE_TIME_PROFILE_MS,
+  DEADLINE_BUFFER_SECONDS,
+  TOKEN_DECIMALS,
+  PINATA_GATEWAY,
+} from "@/lib/constants";
 
 const formatUsd = (value: number, compact = false) => {
   if (compact) {
@@ -39,13 +43,6 @@ const formatUsd = (value: number, compact = false) => {
   }
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
-
-const formatPercent = (value: number) => {
-  const sign = value >= 0 ? "+" : "";
-  return `${sign}${value.toFixed(2)}%`;
-};
-
-const PINATA_GATEWAY = process.env.NEXT_PUBLIC_PINATA_GATEWAY || "https://gateway.pinata.cloud";
 
 const ipfsToGateway = (uri: string | undefined) => {
   if (!uri) return null;
@@ -59,11 +56,9 @@ export default function RigDetailPage() {
   const params = useParams();
   const rigAddress = params.address as `0x${string}`;
 
-  const readyRef = useRef(false);
-  const autoConnectAttempted = useRef(false);
   const [customMessage, setCustomMessage] = useState("");
-  const [ethUsdPrice, setEthUsdPrice] = useState<number>(3500);
-  const [donutUsdPrice, setDonutUsdPrice] = useState<number>(0.001);
+  const [ethUsdPrice, setEthUsdPrice] = useState<number>(DEFAULT_ETH_PRICE_USD);
+  const [donutUsdPrice, setDonutUsdPrice] = useState<number>(DEFAULT_DONUT_PRICE_USD);
   const [mineResult, setMineResult] = useState<"success" | "failure" | null>(null);
   const mineResultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [tradeResult, setTradeResult] = useState<"success" | "failure" | null>(null);
@@ -80,10 +75,8 @@ export default function RigDetailPage() {
   const [tradeDirection, setTradeDirection] = useState<"buy" | "sell">("buy"); // buy = ETH -> Unit, sell = Unit -> ETH
   const [tradeAmount, setTradeAmount] = useState("");
 
-  // Wallet connection
-  const { address, isConnected } = useAccount();
-  const { connectors, connectAsync, isPending: isConnecting } = useConnect();
-  const primaryConnector = connectors[0];
+  // Farcaster context and wallet connection
+  const { address, isConnected, connect } = useFarcaster();
 
   // Rig data
   const { rigState, refetch: refetchRigState } = useRigState(rigAddress, address);
@@ -102,7 +95,7 @@ export default function RigDetailPage() {
     address: rigInfo?.unitAddress,
     abi: ERC20_ABI,
     functionName: "totalSupply",
-    chainId: base.id,
+    chainId: DEFAULT_CHAIN_ID,
     query: {
       enabled: !!rigInfo?.unitAddress,
     },
@@ -110,7 +103,7 @@ export default function RigDetailPage() {
 
   // Transaction handling (mining)
   const { data: txHash, writeContract, isPending: isWriting, reset: resetWrite } = useWriteContract();
-  const { data: receipt, isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash, chainId: base.id });
+  const { data: receipt, isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash, chainId: DEFAULT_CHAIN_ID });
 
   // Trade transaction handling
   const { writeContract: writeApprove, isPending: isApproving, data: approveTxHash } = useWriteContract();
@@ -123,13 +116,13 @@ export default function RigDetailPage() {
 
   const { data: ethBalanceData } = useBalance({
     address,
-    chainId: base.id,
+    chainId: DEFAULT_CHAIN_ID,
   });
 
   const { data: unitBalanceData } = useBalance({
     address,
     token: rigInfo?.unitAddress as Address,
-    chainId: base.id,
+    chainId: DEFAULT_CHAIN_ID,
     query: { enabled: !!rigInfo?.unitAddress },
   });
 
@@ -203,7 +196,7 @@ export default function RigDetailPage() {
     args: address && tradeQuote?.transaction?.to
       ? [address, tradeQuote.transaction.to as Address]
       : undefined,
-    chainId: base.id,
+    chainId: DEFAULT_CHAIN_ID,
     query: {
       enabled: tradeDirection === "sell" && !!rigInfo?.unitAddress && !!address && !!tradeQuote?.transaction?.to,
     },
@@ -240,17 +233,6 @@ export default function RigDetailPage() {
     }, 3000);
   }, []);
 
-  // SDK ready
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!readyRef.current) {
-        readyRef.current = true;
-        sdk.actions.ready().catch(() => {});
-      }
-    }, 1200);
-    return () => clearTimeout(timeout);
-  }, []);
-
   useEffect(() => {
     return () => {
       if (mineResultTimeoutRef.current) clearTimeout(mineResultTimeoutRef.current);
@@ -269,16 +251,9 @@ export default function RigDetailPage() {
       setDonutUsdPrice(donutPrice);
     };
     fetchPrices();
-    const interval = setInterval(fetchPrices, 60_000);
+    const interval = setInterval(fetchPrices, PRICE_REFETCH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
-
-  // Auto-connect wallet
-  useEffect(() => {
-    if (autoConnectAttempted.current || isConnected || !primaryConnector || isConnecting) return;
-    autoConnectAttempted.current = true;
-    connectAsync({ connector: primaryConnector, chainId: base.id }).catch(() => {});
-  }, [connectAsync, isConnected, isConnecting, primaryConnector]);
 
   // Scroll handler for header ticker - show when price bottom gets covered by header
   useEffect(() => {
@@ -352,9 +327,7 @@ export default function RigDetailPage() {
     try {
       let targetAddress = address;
       if (!targetAddress) {
-        if (!primaryConnector) throw new Error("Wallet connector not available yet.");
-        const result = await connectAsync({ connector: primaryConnector, chainId: base.id });
-        targetAddress = result.accounts[0];
+        targetAddress = await connect();
       }
       if (!targetAddress) throw new Error("Unable to determine wallet address.");
 
@@ -369,14 +342,14 @@ export default function RigDetailPage() {
         functionName: "mine",
         args: [rigAddress, rigState.epochId, deadline, maxPrice, customMessage.trim() || "gm"],
         value: price,
-        chainId: base.id,
+        chainId: DEFAULT_CHAIN_ID,
       });
     } catch (error) {
       console.error("Failed to mine:", error);
       showMineResult("failure");
       resetWrite();
     }
-  }, [address, connectAsync, customMessage, rigState, rigAddress, primaryConnector, resetMineResult, resetWrite, showMineResult, writeContract]);
+  }, [address, connect, customMessage, rigState, rigAddress, resetMineResult, resetWrite, showMineResult, writeContract]);
 
   // Trade handlers
   const [pendingSwapAfterApproval, setPendingSwapAfterApproval] = useState(false);
@@ -387,7 +360,7 @@ export default function RigDetailPage() {
       to: tradeQuote.transaction.to as Address,
       data: tradeQuote.transaction.data as `0x${string}`,
       value: BigInt(tradeQuote.transaction.value || "0"),
-      chainId: base.id,
+      chainId: DEFAULT_CHAIN_ID,
     });
   }, [tradeQuote, address, sendTransaction]);
 
@@ -403,7 +376,7 @@ export default function RigDetailPage() {
         abi: ERC20_ABI,
         functionName: "approve",
         args: [tradeQuote.transaction.to as Address, sellAmountWei],
-        chainId: base.id,
+        chainId: DEFAULT_CHAIN_ID,
       });
     } else {
       // No approval needed, just swap
@@ -600,7 +573,7 @@ export default function RigDetailPage() {
       return res.json();
     },
     enabled: hasMiner,
-    staleTime: 60_000,
+    staleTime: STALE_TIME_PROFILE_MS,
     retry: false,
   });
 
@@ -633,7 +606,7 @@ export default function RigDetailPage() {
       return response.json();
     },
     enabled: !!rigState?.unitUri,
-    staleTime: 60_000,
+    staleTime: STALE_TIME_PROFILE_MS,
     retry: false,
   });
 

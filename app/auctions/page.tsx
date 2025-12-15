@@ -1,15 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { sdk } from "@farcaster/miniapp-sdk";
 import { Flame } from "lucide-react";
 import {
-  useAccount,
-  useConnect,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { base } from "wagmi/chains";
 import { formatEther, type Address } from "viem";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -21,26 +17,17 @@ import {
   type AuctionListItem,
 } from "@/hooks/useAuctionState";
 import { useRigInfo, useRigState } from "@/hooks/useRigState";
+import { useFarcaster, getUserDisplayName, getUserHandle, initialsFrom } from "@/hooks/useFarcaster";
 import { CONTRACT_ADDRESSES, MULTICALL_ABI, ERC20_ABI } from "@/lib/contracts";
 import { cn, getEthPrice, getDonutPrice } from "@/lib/utils";
+import {
+  DEFAULT_CHAIN_ID,
+  DEFAULT_ETH_PRICE_USD,
+  DEFAULT_DONUT_PRICE_USD,
+  PRICE_REFETCH_INTERVAL_MS,
+} from "@/lib/constants";
 
-type MiniAppContext = {
-  user?: {
-    fid: number;
-    username?: string;
-    displayName?: string;
-    pfpUrl?: string;
-  };
-};
-
-const DEADLINE_BUFFER_SECONDS = 5 * 60;
-
-const initialsFrom = (label?: string) => {
-  if (!label) return "";
-  const stripped = label.replace(/[^a-zA-Z0-9]/g, "");
-  if (!stripped) return label.slice(0, 2).toUpperCase();
-  return stripped.slice(0, 2).toUpperCase();
-};
+const AUCTION_DEADLINE_BUFFER_SECONDS = 5 * 60;
 
 const formatEth = (value: bigint, maximumFractionDigits = 4) => {
   if (value === 0n) return "0";
@@ -237,21 +224,16 @@ function AuctionCard({
 }
 
 export default function AuctionsPage() {
-  const readyRef = useRef(false);
-  const autoConnectAttempted = useRef(false);
-  const [context, setContext] = useState<MiniAppContext | null>(null);
-  const [ethUsdPrice, setEthUsdPrice] = useState<number>(3500);
-  const [donutUsdPrice, setDonutUsdPrice] = useState<number>(0.001);
+  const [ethUsdPrice, setEthUsdPrice] = useState<number>(DEFAULT_ETH_PRICE_USD);
+  const [donutUsdPrice, setDonutUsdPrice] = useState<number>(DEFAULT_DONUT_PRICE_USD);
   const [selectedAuctionAddress, setSelectedAuctionAddress] = useState<`0x${string}` | null>(null);
   const [txStep, setTxStep] = useState<"idle" | "approving" | "buying">("idle");
   const [pendingAuction, setPendingAuction] = useState<AuctionListItem | null>(
     null
   );
 
-  // Wallet connection
-  const { address, isConnected } = useAccount();
-  const { connectors, connectAsync, isPending: isConnecting } = useConnect();
-  const primaryConnector = connectors[0];
+  // Farcaster context and wallet connection
+  const { user, address, isConnected, connect } = useFarcaster();
 
   // Get all rig addresses
   const { addresses: rigAddresses } = useAllRigAddresses();
@@ -315,40 +297,8 @@ export default function AuctionsPage() {
   const { data: receipt, isLoading: isConfirming } =
     useWaitForTransactionReceipt({
       hash: txHash,
-      chainId: base.id,
+      chainId: DEFAULT_CHAIN_ID,
     });
-
-  // Fetch Farcaster context
-  useEffect(() => {
-    let cancelled = false;
-    const hydrateContext = async () => {
-      try {
-        const ctx = (await (sdk as unknown as {
-          context: Promise<MiniAppContext> | MiniAppContext;
-        }).context) as MiniAppContext;
-        if (!cancelled) {
-          setContext(ctx);
-        }
-      } catch {
-        if (!cancelled) setContext(null);
-      }
-    };
-    hydrateContext();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // SDK ready
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!readyRef.current) {
-        readyRef.current = true;
-        sdk.actions.ready().catch(() => {});
-      }
-    }, 1200);
-    return () => clearTimeout(timeout);
-  }, []);
 
   // Fetch ETH and DONUT prices
   useEffect(() => {
@@ -361,26 +311,9 @@ export default function AuctionsPage() {
       setDonutUsdPrice(donutPrice);
     };
     fetchPrices();
-    const interval = setInterval(fetchPrices, 60_000);
+    const interval = setInterval(fetchPrices, PRICE_REFETCH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
-
-  // Auto-connect wallet
-  useEffect(() => {
-    if (
-      autoConnectAttempted.current ||
-      isConnected ||
-      !primaryConnector ||
-      isConnecting
-    ) {
-      return;
-    }
-    autoConnectAttempted.current = true;
-    connectAsync({
-      connector: primaryConnector,
-      chainId: base.id,
-    }).catch(() => {});
-  }, [connectAsync, isConnected, isConnecting, primaryConnector]);
 
   // Handle receipt
   useEffect(() => {
@@ -431,7 +364,7 @@ export default function AuctionsPage() {
       if (!address) return;
 
       const deadline = BigInt(
-        Math.floor(Date.now() / 1000) + DEADLINE_BUFFER_SECONDS
+        Math.floor(Date.now() / 1000) + AUCTION_DEADLINE_BUFFER_SECONDS
       );
 
       await writeContract({
@@ -445,7 +378,7 @@ export default function AuctionsPage() {
           deadline,
           auction.auctionState.price,
         ],
-        chainId: base.id,
+        chainId: DEFAULT_CHAIN_ID,
       });
     },
     [address, writeContract]
@@ -454,12 +387,8 @@ export default function AuctionsPage() {
   const handleBuy = useCallback(
     async (auction: AuctionListItem) => {
       if (!address) {
-        if (!primaryConnector) return;
         try {
-          await connectAsync({
-            connector: primaryConnector,
-            chainId: base.id,
-          });
+          await connect();
         } catch {
           return;
         }
@@ -479,7 +408,7 @@ export default function AuctionsPage() {
             CONTRACT_ADDRESSES.multicall as Address,
             auction.auctionState.price,
           ],
-          chainId: base.id,
+          chainId: DEFAULT_CHAIN_ID,
         });
       } catch (error) {
         console.error("Approval failed:", error);
@@ -488,12 +417,12 @@ export default function AuctionsPage() {
         resetWrite();
       }
     },
-    [address, connectAsync, primaryConnector, writeContract, resetWrite]
+    [address, connect, writeContract, resetWrite]
   );
 
-  const userDisplayName =
-    context?.user?.displayName ?? context?.user?.username ?? "Farcaster user";
-  const userAvatarUrl = context?.user?.pfpUrl ?? null;
+  const userDisplayName = getUserDisplayName(user);
+  const userHandle = getUserHandle(user);
+  const userAvatarUrl = user?.pfpUrl ?? null;
 
   // Auto-select first auction if none selected
   useEffect(() => {
@@ -550,18 +479,26 @@ export default function AuctionsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-2xl font-bold tracking-wide">AUCTIONS</h1>
-          {context?.user && (
-            <Avatar className="h-8 w-8 border border-zinc-800">
-              <AvatarImage
-                src={userAvatarUrl || undefined}
-                alt={userDisplayName}
-                className="object-cover"
-              />
-              <AvatarFallback className="bg-zinc-800 text-white">
-                {initialsFrom(userDisplayName)}
-              </AvatarFallback>
-            </Avatar>
-          )}
+          {user ? (
+            <div className="flex items-center gap-2 rounded-full bg-black px-3 py-1">
+              <Avatar className="h-8 w-8 border border-zinc-800">
+                <AvatarImage
+                  src={userAvatarUrl || undefined}
+                  alt={userDisplayName}
+                  className="object-cover"
+                />
+                <AvatarFallback className="bg-zinc-800 text-white">
+                  {initialsFrom(userDisplayName)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="leading-tight text-left">
+                <div className="text-sm font-bold">{userDisplayName}</div>
+                {userHandle ? (
+                  <div className="text-xs text-gray-400">{userHandle}</div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* Auction Cards List */}

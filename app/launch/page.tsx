@@ -2,17 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { sdk } from "@farcaster/miniapp-sdk";
 import {
-  useAccount,
-  useConnect,
   useReadContract,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { base } from "wagmi/chains";
 import { parseEther, formatEther, type Address } from "viem";
-import { Upload, X, Loader2, Plus, Minus } from "lucide-react";
+import { Upload, X, Plus, Minus } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -25,28 +21,11 @@ import {
   LAUNCH_DEFAULTS,
 } from "@/lib/contracts";
 import { getDonutPrice } from "@/lib/utils";
-
-type MiniAppContext = {
-  user?: {
-    fid: number;
-    username?: string;
-    displayName?: string;
-    pfpUrl?: string;
-  };
-};
-
-const initialsFrom = (label?: string) => {
-  if (!label) return "";
-  const stripped = label.replace(/[^a-zA-Z0-9]/g, "");
-  if (!stripped) return label.slice(0, 2).toUpperCase();
-  return stripped.slice(0, 2).toUpperCase();
-};
+import { useFarcaster, getUserDisplayName, getUserHandle, initialsFrom } from "@/hooks/useFarcaster";
+import { DEFAULT_CHAIN_ID, DEFAULT_DONUT_PRICE_USD, PRICE_REFETCH_INTERVAL_MS, STALE_TIME_SHORT_MS } from "@/lib/constants";
 
 export default function LaunchPage() {
   const router = useRouter();
-  const readyRef = useRef(false);
-  const autoConnectAttempted = useRef(false);
-  const [context, setContext] = useState<MiniAppContext | null>(null);
 
   // Form state
   const [tokenName, setTokenName] = useState("");
@@ -64,7 +43,7 @@ export default function LaunchPage() {
 
   // Fixed 1 DONUT fee
   const donutAmountBigInt = parseEther("1");
-  const [donutUsdPrice, setDonutUsdPrice] = useState<number>(0.001);
+  const [donutUsdPrice, setDonutUsdPrice] = useState<number>(DEFAULT_DONUT_PRICE_USD);
   const [launchResult, setLaunchResult] = useState<
     "success" | "failure" | null
   >(null);
@@ -72,17 +51,15 @@ export default function LaunchPage() {
     null
   );
 
-  // Wallet connection
-  const { address, isConnected } = useAccount();
-  const { connectors, connectAsync, isPending: isConnecting } = useConnect();
-  const primaryConnector = connectors[0];
+  // Farcaster context and wallet connection
+  const { user, address, isConnected, connect } = useFarcaster();
 
   // Get DONUT token address from Core
   const { data: donutTokenAddress } = useReadContract({
     address: CONTRACT_ADDRESSES.core as `0x${string}`,
     abi: CORE_ABI,
     functionName: "donutToken",
-    chainId: base.id,
+    chainId: DEFAULT_CHAIN_ID,
   });
 
   // Get user's DONUT balance
@@ -91,10 +68,10 @@ export default function LaunchPage() {
     abi: ERC20_ABI,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
-    chainId: base.id,
+    chainId: DEFAULT_CHAIN_ID,
     query: {
       enabled: !!donutTokenAddress && !!address,
-      refetchInterval: 10_000,
+      refetchInterval: STALE_TIME_SHORT_MS,
     },
   });
 
@@ -106,7 +83,7 @@ export default function LaunchPage() {
     args: address
       ? [address, CONTRACT_ADDRESSES.multicall as `0x${string}`]
       : undefined,
-    chainId: base.id,
+    chainId: DEFAULT_CHAIN_ID,
     query: {
       enabled: !!donutTokenAddress && !!address,
     },
@@ -123,57 +100,8 @@ export default function LaunchPage() {
   const { data: receipt, isLoading: isConfirming } =
     useWaitForTransactionReceipt({
       hash: txHash,
-      chainId: base.id,
+      chainId: DEFAULT_CHAIN_ID,
     });
-
-  // Fetch Farcaster context
-  useEffect(() => {
-    let cancelled = false;
-    const hydrateContext = async () => {
-      try {
-        const ctx = (await (sdk as unknown as {
-          context: Promise<MiniAppContext> | MiniAppContext;
-        }).context) as MiniAppContext;
-        if (!cancelled) {
-          setContext(ctx);
-        }
-      } catch {
-        if (!cancelled) setContext(null);
-      }
-    };
-    hydrateContext();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // SDK ready
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!readyRef.current) {
-        readyRef.current = true;
-        sdk.actions.ready().catch(() => {});
-      }
-    }, 1200);
-    return () => clearTimeout(timeout);
-  }, []);
-
-  // Auto-connect wallet
-  useEffect(() => {
-    if (
-      autoConnectAttempted.current ||
-      isConnected ||
-      !primaryConnector ||
-      isConnecting
-    ) {
-      return;
-    }
-    autoConnectAttempted.current = true;
-    connectAsync({
-      connector: primaryConnector,
-      chainId: base.id,
-    }).catch(() => {});
-  }, [connectAsync, isConnected, isConnecting, primaryConnector]);
 
   // Fetch DONUT price
   useEffect(() => {
@@ -182,7 +110,7 @@ export default function LaunchPage() {
       setDonutUsdPrice(price);
     };
     fetchPrice();
-    const interval = setInterval(fetchPrice, 60_000);
+    const interval = setInterval(fetchPrice, PRICE_REFETCH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 
@@ -363,7 +291,7 @@ export default function LaunchPage() {
             CONTRACT_ADDRESSES.multicall as Address,
             donutAmountBigInt,
           ],
-          chainId: base.id,
+          chainId: DEFAULT_CHAIN_ID,
         });
         return;
       }
@@ -385,7 +313,7 @@ export default function LaunchPage() {
         abi: MULTICALL_ABI,
         functionName: "launch",
         args: [launchParams],
-        chainId: base.id,
+        chainId: DEFAULT_CHAIN_ID,
       });
     } catch (error) {
       console.error("Launch failed:", error);
@@ -443,16 +371,8 @@ export default function LaunchPage() {
 
     let targetAddress = address;
     if (!targetAddress) {
-      if (!primaryConnector) {
-        showLaunchResult("failure");
-        return;
-      }
       try {
-        const result = await connectAsync({
-          connector: primaryConnector,
-          chainId: base.id,
-        });
-        targetAddress = result.accounts[0];
+        targetAddress = await connect();
       } catch {
         showLaunchResult("failure");
         return;
@@ -489,10 +409,9 @@ export default function LaunchPage() {
     }
   }, [
     address,
-    connectAsync,
+    connect,
     logoFile,
     needsApproval,
-    primaryConnector,
     resetLaunchResult,
     showLaunchResult,
     uploadLogo,
@@ -519,14 +438,9 @@ export default function LaunchPage() {
     launchResult !== null ||
     !isConnected;
 
-  const userDisplayName =
-    context?.user?.displayName ?? context?.user?.username ?? "Farcaster user";
-  const userHandle = context?.user?.username
-    ? `@${context.user.username}`
-    : context?.user?.fid
-      ? `fid ${context.user.fid}`
-      : "";
-  const userAvatarUrl = context?.user?.pfpUrl ?? null;
+  const userDisplayName = getUserDisplayName(user);
+  const userHandle = getUserHandle(user);
+  const userAvatarUrl = user?.pfpUrl ?? null;
 
   return (
     <main className="flex h-screen w-screen justify-center overflow-hidden bg-black font-mono text-white">
@@ -541,17 +455,25 @@ export default function LaunchPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-2xl font-bold tracking-wide">LAUNCH</h1>
-            {context?.user ? (
-              <Avatar className="h-8 w-8 border border-zinc-800">
-                <AvatarImage
-                  src={userAvatarUrl || undefined}
-                  alt={userDisplayName}
-                  className="object-cover"
-                />
-                <AvatarFallback className="bg-zinc-800 text-white">
-                  {initialsFrom(userDisplayName)}
-                </AvatarFallback>
-              </Avatar>
+            {user ? (
+              <div className="flex items-center gap-2 rounded-full bg-black px-3 py-1">
+                <Avatar className="h-8 w-8 border border-zinc-800">
+                  <AvatarImage
+                    src={userAvatarUrl || undefined}
+                    alt={userDisplayName}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="bg-zinc-800 text-white">
+                    {initialsFrom(userDisplayName)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="leading-tight text-left">
+                  <div className="text-sm font-bold">{userDisplayName}</div>
+                  {userHandle ? (
+                    <div className="text-xs text-gray-400">{userHandle}</div>
+                  ) : null}
+                </div>
+              </div>
             ) : null}
           </div>
 
