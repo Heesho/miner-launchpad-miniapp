@@ -2,12 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  useReadContract,
-  useWaitForTransactionReceipt,
-  useWriteContract,
-} from "wagmi";
-import { parseEther, formatEther, type Address } from "viem";
+import { useReadContract } from "wagmi";
+import { parseEther, formatEther, type Address, encodeFunctionData } from "viem";
 import { Upload, X, Plus, Minus } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,7 +18,19 @@ import {
 } from "@/lib/contracts";
 import { getDonutPrice } from "@/lib/utils";
 import { useFarcaster, getUserDisplayName, getUserHandle, initialsFrom } from "@/hooks/useFarcaster";
+import { useBatchedTransaction, encodeApproveCall, type Call } from "@/hooks/useBatchedTransaction";
 import { DEFAULT_CHAIN_ID, DEFAULT_DONUT_PRICE_USD, PRICE_REFETCH_INTERVAL_MS, STALE_TIME_SHORT_MS } from "@/lib/constants";
+
+// Animated dots component for loading state
+function LoadingDots() {
+  return (
+    <span className="inline-flex">
+      <span className="animate-[bounce_1s_infinite_0ms]">.</span>
+      <span className="animate-[bounce_1s_infinite_200ms]">.</span>
+      <span className="animate-[bounce_1s_infinite_400ms]">.</span>
+    </span>
+  );
+}
 
 export default function LaunchPage() {
   const router = useRouter();
@@ -36,10 +44,7 @@ export default function LaunchPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [txStep, setTxStep] = useState<"idle" | "approving" | "uploading" | "launching">(
-    "idle"
-  );
-  const [metadataUri, setMetadataUri] = useState("");
+  const [txStep, setTxStep] = useState<"idle" | "uploading" | "launching">("idle");
 
   // Fixed 1 DONUT fee
   const donutAmountBigInt = parseEther("1");
@@ -53,6 +58,13 @@ export default function LaunchPage() {
 
   // Farcaster context and wallet connection
   const { user, address, isConnected, connect } = useFarcaster();
+
+  // Batched transaction hook for approve + launch
+  const {
+    execute: executeBatch,
+    state: batchState,
+    reset: resetBatch,
+  } = useBatchedTransaction();
 
   // Get DONUT token address from Core
   const { data: donutTokenAddress } = useReadContract({
@@ -75,33 +87,6 @@ export default function LaunchPage() {
     },
   });
 
-  // Get user's DONUT allowance
-  const { data: donutAllowance, refetch: refetchAllowance } = useReadContract({
-    address: donutTokenAddress as `0x${string}`,
-    abi: ERC20_ABI,
-    functionName: "allowance",
-    args: address
-      ? [address, CONTRACT_ADDRESSES.multicall as `0x${string}`]
-      : undefined,
-    chainId: DEFAULT_CHAIN_ID,
-    query: {
-      enabled: !!donutTokenAddress && !!address,
-    },
-  });
-
-  // Transaction handling
-  const {
-    data: txHash,
-    writeContract,
-    isPending: isWriting,
-    reset: resetWrite,
-  } = useWriteContract();
-
-  const { data: receipt, isLoading: isConfirming } =
-    useWaitForTransactionReceipt({
-      hash: txHash,
-      chainId: DEFAULT_CHAIN_ID,
-    });
 
   // Fetch DONUT price
   useEffect(() => {
@@ -141,6 +126,22 @@ export default function LaunchPage() {
       launchResultTimeoutRef.current = null;
     }, 3000);
   }, []);
+
+  // Handle batched transaction result
+  useEffect(() => {
+    if (batchState === "success") {
+      showLaunchResult("success");
+      setTxStep("idle");
+      resetBatch();
+      setTimeout(() => {
+        router.push("/explore");
+      }, 2000);
+    } else if (batchState === "error") {
+      showLaunchResult("failure");
+      setTxStep("idle");
+      resetBatch();
+    }
+  }, [batchState, showLaunchResult, resetBatch, router]);
 
   // Handle logo selection (just preview, don't upload yet)
   const handleLogoSelect = useCallback(
@@ -217,54 +218,7 @@ export default function LaunchPage() {
     setLinks((prev) => prev.map((link, i) => (i === index ? value : link)));
   }, []);
 
-  // Handle receipt
-  useEffect(() => {
-    if (!receipt) return;
-
-    if (receipt.status === "reverted") {
-      showLaunchResult("failure");
-      setTxStep("idle");
-      resetWrite();
-      return;
-    }
-
-    if (receipt.status === "success") {
-      if (txStep === "approving") {
-        // Approval succeeded, now launch
-        resetWrite();
-        refetchAllowance();
-        setTxStep("launching");
-        return;
-      }
-
-      if (txStep === "launching") {
-        // Launch succeeded!
-        showLaunchResult("success");
-        setTxStep("idle");
-        // Try to extract the new rig address from logs and redirect
-        // For now, just redirect to explore
-        setTimeout(() => {
-          router.push("/explore");
-        }, 2000);
-        return;
-      }
-    }
-    return;
-  }, [receipt, txStep, resetWrite, refetchAllowance, showLaunchResult, router]);
-
-  // Auto-trigger approval or launch after metadata upload
-  useEffect(() => {
-    if ((txStep === "approving" || txStep === "launching") && !isWriting && !isConfirming && !txHash) {
-      handleLaunchStep();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [txStep, isWriting, isConfirming, txHash]);
-
   const userDonutBalance = donutBalance as bigint | undefined;
-  const userAllowance = donutAllowance as bigint | undefined;
-
-  const needsApproval =
-    userAllowance !== undefined && donutAmountBigInt > userAllowance;
 
   const validationError = useMemo(() => {
     if (!tokenName.trim()) return "Token name is required";
@@ -275,64 +229,6 @@ export default function LaunchPage() {
     }
     return null;
   }, [tokenName, tokenSymbol, donutAmountBigInt, userDonutBalance]);
-
-  const handleLaunchStep = useCallback(async () => {
-    if (!address || !donutTokenAddress) return;
-
-    try {
-      if (txStep === "approving") {
-        // Need to approve first
-        await writeContract({
-          account: address as Address,
-          address: donutTokenAddress as Address,
-          abi: ERC20_ABI,
-          functionName: "approve",
-          args: [
-            CONTRACT_ADDRESSES.multicall as Address,
-            donutAmountBigInt,
-          ],
-          chainId: DEFAULT_CHAIN_ID,
-        });
-        return;
-      }
-
-      // Launch the rig
-      const launchParams = {
-        ...LAUNCH_DEFAULTS,
-        launcher: address,
-        tokenName: tokenName.trim(),
-        tokenSymbol: tokenSymbol.trim().toUpperCase(),
-        unitUri: metadataUri,
-        donutAmount: donutAmountBigInt,
-        teamAddress: address, // Default to launcher
-      };
-
-      await writeContract({
-        account: address as Address,
-        address: CONTRACT_ADDRESSES.multicall as Address,
-        abi: MULTICALL_ABI,
-        functionName: "launch",
-        args: [launchParams],
-        chainId: DEFAULT_CHAIN_ID,
-      });
-    } catch (error) {
-      console.error("Launch failed:", error);
-      showLaunchResult("failure");
-      setTxStep("idle");
-      resetWrite();
-    }
-  }, [
-    address,
-    donutTokenAddress,
-    txStep,
-    donutAmountBigInt,
-    tokenName,
-    tokenSymbol,
-    metadataUri,
-    writeContract,
-    showLaunchResult,
-    resetWrite,
-  ]);
 
   // Upload metadata to IPFS
   const uploadMetadata = useCallback(async (imageUri: string): Promise<string | null> => {
@@ -379,6 +275,11 @@ export default function LaunchPage() {
       }
     }
 
+    if (!donutTokenAddress) {
+      showLaunchResult("failure");
+      return;
+    }
+
     setTxStep("uploading");
 
     // Upload image first (if any)
@@ -400,41 +301,67 @@ export default function LaunchPage() {
       setTxStep("idle");
       return;
     }
-    setMetadataUri(uploadedMetadataUri);
 
-    if (needsApproval) {
-      setTxStep("approving");
-    } else {
-      setTxStep("launching");
+    setTxStep("launching");
+
+    // Create batched calls: approve + launch
+    const approveCall = encodeApproveCall(
+      donutTokenAddress as Address,
+      CONTRACT_ADDRESSES.multicall as Address,
+      donutAmountBigInt
+    );
+
+    // Encode launch call
+    const launchParams = {
+      ...LAUNCH_DEFAULTS,
+      launcher: targetAddress,
+      tokenName: tokenName.trim(),
+      tokenSymbol: tokenSymbol.trim().toUpperCase(),
+      unitUri: uploadedMetadataUri,
+      donutAmount: donutAmountBigInt,
+      teamAddress: targetAddress,
+    };
+
+    const launchCallData = encodeFunctionData({
+      abi: MULTICALL_ABI,
+      functionName: "launch",
+      args: [launchParams],
+    });
+
+    const launchCall: Call = {
+      to: CONTRACT_ADDRESSES.multicall as Address,
+      data: launchCallData,
+    };
+
+    try {
+      await executeBatch([approveCall, launchCall]);
+    } catch (error) {
+      console.error("Launch failed:", error);
+      showLaunchResult("failure");
+      setTxStep("idle");
+      resetBatch();
     }
   }, [
     address,
     connect,
+    donutTokenAddress,
+    donutAmountBigInt,
     logoFile,
-    needsApproval,
+    tokenName,
+    tokenSymbol,
     resetLaunchResult,
     showLaunchResult,
     uploadLogo,
     uploadMetadata,
+    executeBatch,
+    resetBatch,
   ]);
 
-  const buttonLabel = useMemo(() => {
-    if (launchResult === "success") return "SUCCESS!";
-    if (launchResult === "failure") return "FAILED";
-    if (txStep === "uploading") return "UPLOADING...";
-    if (isWriting || isConfirming) {
-      if (txStep === "approving") return "APPROVING...";
-      if (txStep === "launching") return "LAUNCHING...";
-      return "PROCESSING...";
-    }
-    return "LAUNCH";
-  }, [launchResult, isConfirming, isWriting, txStep]);
+  const isLaunching = txStep !== "idle" || batchState === "pending" || batchState === "confirming";
 
   const isLaunchDisabled =
     !!validationError ||
-    isWriting ||
-    isConfirming ||
-    txStep !== "idle" ||
+    isLaunching ||
     launchResult !== null ||
     !isConnected;
 
@@ -645,7 +572,17 @@ export default function LaunchPage() {
                   onClick={handleLaunch}
                   disabled={isLaunchDisabled}
                 >
-                  {buttonLabel}
+                  {launchResult === "success" ? (
+                    "SUCCESS!"
+                  ) : launchResult === "failure" ? (
+                    "FAILED"
+                  ) : txStep === "uploading" ? (
+                    <>UPLOADING<LoadingDots /></>
+                  ) : txStep === "launching" || batchState === "pending" || batchState === "confirming" ? (
+                    <>LAUNCHING<LoadingDots /></>
+                  ) : (
+                    "LAUNCH"
+                  )}
                 </Button>
               </div>
             </div>
