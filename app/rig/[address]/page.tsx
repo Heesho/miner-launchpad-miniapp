@@ -725,7 +725,7 @@ export default function RigDetailPage() {
           {/* Token Info + Price */}
           <div className="px-2 flex gap-3">
             <div className="flex-1">
-              <div className="text-xs text-zinc-500 font-medium">${tokenSymbol}</div>
+              <div className="text-xs text-zinc-500 font-medium">{tokenSymbol}</div>
               <h1 className="text-xl font-bold">{tokenName}</h1>
               <div ref={priceRef} className="mt-1 flex items-baseline gap-2">
                 <span className="text-2xl font-bold">${displayPriceUsd.toFixed(6)}</span>
