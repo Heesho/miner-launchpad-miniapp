@@ -29,6 +29,7 @@ export type SubgraphRig = {
   revenue: string;
   teamRevenue: string;
   minted: string;
+  lastMined: string;
   createdAt: string;
   createdAtBlock: string;
 };
@@ -294,32 +295,29 @@ export const GET_ACCOUNT_QUERY = gql`
   }
 `;
 
-// Get recent epochs to derive trending rigs (most recently mined)
-export const GET_RECENT_EPOCHS_WITH_RIGS_QUERY = gql`
-  query GetRecentEpochsWithRigs($first: Int!) {
-    epoches(first: $first, orderBy: startTime, orderDirection: desc) {
+// Get trending rigs (most recently mined)
+export const GET_TRENDING_RIGS_QUERY = gql`
+  query GetTrendingRigs($first: Int!) {
+    rigs(first: $first, orderBy: lastMined, orderDirection: desc) {
       id
-      startTime
-      rig {
+      launchpad {
         id
-        launchpad {
-          id
-        }
-        launcher {
-          id
-        }
-        unit
-        auction
-        lpToken
-        tokenName
-        tokenSymbol
-        epochId
-        revenue
-        teamRevenue
-        minted
-        createdAt
-        createdAtBlock
       }
+      launcher {
+        id
+      }
+      unit
+      auction
+      lpToken
+      tokenName
+      tokenSymbol
+      epochId
+      revenue
+      teamRevenue
+      minted
+      lastMined
+      createdAt
+      createdAtBlock
     }
   }
 `;
@@ -503,25 +501,11 @@ export async function getAccount(id: string): Promise<SubgraphAccount | null> {
 
 export async function getTrendingRigs(first = 20): Promise<SubgraphRig[]> {
   try {
-    // Query more epochs to ensure we get enough unique rigs
-    const data = await client.request<{
-      epoches: Array<{ id: string; startTime: string; rig: SubgraphRig }>;
-    }>(GET_RECENT_EPOCHS_WITH_RIGS_QUERY, { first: first * 3 });
-
-    // Extract unique rigs, keeping the order from most recent epoch
-    const seenRigIds = new Set<string>();
-    const uniqueRigs: SubgraphRig[] = [];
-
-    for (const epoch of data.epoches) {
-      const rigId = epoch.rig.id;
-      if (!seenRigIds.has(rigId)) {
-        seenRigIds.add(rigId);
-        uniqueRigs.push(epoch.rig);
-        if (uniqueRigs.length >= first) break;
-      }
-    }
-
-    return uniqueRigs;
+    const data = await client.request<{ rigs: SubgraphRig[] }>(
+      GET_TRENDING_RIGS_QUERY,
+      { first }
+    );
+    return data.rigs;
   } catch (error) {
     console.error("[getTrendingRigs] Error:", error);
     return [];
