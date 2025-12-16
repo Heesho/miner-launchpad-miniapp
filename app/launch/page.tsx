@@ -422,12 +422,12 @@ export default function LaunchPage() {
                       <img
                         src={logoPreview}
                         alt="Token logo preview"
-                        className="w-[84px] h-[84px] rounded-lg object-contain bg-zinc-900"
+                        className="w-[84px] h-[84px] rounded-lg object-cover bg-zinc-900"
                       />
                       <button
                         type="button"
                         onClick={removeLogo}
-                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-zinc-700 rounded-full flex items-center justify-center hover:bg-zinc-600 transition-colors"
+                        className="absolute top-1 right-1 w-5 h-5 bg-zinc-700/80 rounded-full flex items-center justify-center hover:bg-zinc-600 transition-colors"
                       >
                         <X className="w-3 h-3 text-white" />
                       </button>
