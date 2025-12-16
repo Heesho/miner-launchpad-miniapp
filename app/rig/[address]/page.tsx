@@ -742,7 +742,7 @@ export default function RigDetailPage() {
             {/* Token Logo */}
             <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 flex items-center justify-center flex-shrink-0">
               {tokenLogoUrl ? (
-                <img src={tokenLogoUrl} alt={tokenSymbol} className="w-12 h-12 object-contain" />
+                <img src={tokenLogoUrl} alt={tokenSymbol} className="w-12 h-12 object-cover rounded-xl" />
               ) : (
                 <span className="text-lg font-bold text-pink-500">{tokenSymbol.slice(0, 2)}</span>
               )}

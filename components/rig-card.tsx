@@ -73,7 +73,7 @@ export function RigCard({ rig, ethUsdPrice = 3500, isTopBump = false, isNewBump 
             <img
               src={logoUrl}
               alt={rig.tokenSymbol}
-              className="w-12 h-12 object-contain"
+              className="w-12 h-12 object-cover rounded-xl"
             />
           ) : (
             <span className="text-pink-500 font-bold text-lg">
