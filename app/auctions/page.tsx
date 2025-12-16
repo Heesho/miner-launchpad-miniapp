@@ -468,7 +468,7 @@ export default function AuctionsPage() {
             ))
           )}
           {/* Spacer for bottom bar */}
-          <div className="h-24" />
+          <div className="h-56" />
         </div>
 
         {/* Fixed Bottom Action Bar */}
