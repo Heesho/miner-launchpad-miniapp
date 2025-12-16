@@ -49,6 +49,17 @@ const formatUsd = (value: number, compact = false) => {
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
+// Animated dots component for loading state
+function LoadingDots() {
+  return (
+    <span className="inline-flex">
+      <span className="animate-bounce-dot-1">.</span>
+      <span className="animate-bounce-dot-2">.</span>
+      <span className="animate-bounce-dot-3">.</span>
+    </span>
+  );
+}
+
 const ipfsToGateway = (uri: string | undefined) => {
   if (!uri) return null;
   if (uri.startsWith("ipfs://")) {
@@ -495,12 +506,13 @@ export default function RigDetailPage() {
 
   const buttonLabel = useMemo(() => {
     if (!rigState) return "LOADING...";
+    if (mineResult === "success") return "MINED!";
     if (mineResult === "failure") return "FAILED";
-    if (isWriting || isConfirming) return "MINING...";
+    if (isWriting || isConfirming) return <>MINING<LoadingDots /></>;
     return "MINE";
   }, [mineResult, isConfirming, isWriting, rigState]);
 
-  const isMineDisabled = !rigState || isWriting || isConfirming || mineResult === "failure";
+  const isMineDisabled = !rigState || isWriting || isConfirming || mineResult !== null;
   const tokenSymbol = rigInfo?.tokenSymbol ?? "TOKEN";
   const tokenName = rigInfo?.tokenName ?? "Loading...";
 
@@ -1071,7 +1083,9 @@ export default function RigDetailPage() {
                       disabled={isMineDisabled}
                       className={cn(
                         "w-[calc(50vw-16px)] max-w-[244px] py-2.5 rounded-lg font-semibold transition-all text-sm",
-                        mineResult === "failure"
+                        mineResult === "success"
+                          ? "bg-green-500 text-black"
+                          : mineResult === "failure"
                           ? "bg-zinc-700 text-white"
                           : "bg-pink-500 text-black hover:bg-pink-600 active:scale-[0.98]",
                         isMineDisabled && !mineResult && "opacity-40 cursor-not-allowed"
