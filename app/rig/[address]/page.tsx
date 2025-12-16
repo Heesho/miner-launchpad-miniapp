@@ -121,23 +121,17 @@ export default function RigDetailPage() {
     reset: resetBatch,
   } = useBatchedTransaction();
 
-  // Trade balances - watch for live updates
+  // Trade balances
   const { data: ethBalanceData, refetch: refetchEthBalance } = useBalance({
     address,
     chainId: DEFAULT_CHAIN_ID,
-    query: {
-      refetchInterval: 5000, // Poll every 5 seconds
-    },
   });
 
   const { data: unitBalanceData, refetch: refetchUnitBalance } = useBalance({
     address,
     token: rigInfo?.unitAddress as Address,
     chainId: DEFAULT_CHAIN_ID,
-    query: {
-      enabled: !!rigInfo?.unitAddress,
-      refetchInterval: 5000, // Poll every 5 seconds
-    },
+    query: { enabled: !!rigInfo?.unitAddress },
   });
 
   const refetchBalances = useCallback(() => {
