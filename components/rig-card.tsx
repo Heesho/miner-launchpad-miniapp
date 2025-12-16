@@ -88,7 +88,7 @@ export function RigCard({ rig, ethUsdPrice = 3500, isTopBump = false, isNewBump 
             {rig.tokenName}
           </div>
           <div className="text-sm text-gray-500">
-            ${rig.tokenSymbol}
+            {rig.tokenSymbol}
           </div>
         </div>
 

@@ -106,6 +106,32 @@ export default function RigDetailPage() {
   const { priceHistory, pairData, lpAddress, isLoading: isLoadingPrice } = usePriceHistory(rigAddress, fallbackChartPrice, rigInfo?.unitAddress);
   const { mines: mineHistory } = useMineHistory(rigAddress, 10);
 
+  // Fetch token metadata from IPFS (needed early for defaultMessage in mine)
+  const { data: tokenMetadata } = useQuery<{
+    image?: string;
+    description?: string;
+    defaultMessage?: string;
+    links?: string[];
+    // Legacy format support
+    website?: string;
+    twitter?: string;
+    telegram?: string;
+    discord?: string;
+  }>({
+    queryKey: ["tokenMetadata", rigState?.unitUri],
+    queryFn: async () => {
+      if (!rigState?.unitUri) return null;
+      const metadataUrl = ipfsToGateway(rigState.unitUri);
+      if (!metadataUrl) return null;
+      const response = await fetch(metadataUrl);
+      if (!response.ok) return null;
+      return response.json();
+    },
+    enabled: !!rigState?.unitUri,
+    staleTime: STALE_TIME_PROFILE_MS,
+    retry: false,
+  });
+
   // Token total supply
   const { data: totalSupplyRaw } = useReadContract({
     address: rigInfo?.unitAddress,
@@ -333,7 +359,7 @@ export default function RigDetailPage() {
         address: CONTRACT_ADDRESSES.multicall as Address,
         abi: MULTICALL_ABI,
         functionName: "mine",
-        args: [rigAddress, rigState.epochId, deadline, maxPrice, customMessage.trim() || "gm"],
+        args: [rigAddress, rigState.epochId, deadline, maxPrice, customMessage.trim() || tokenMetadata?.defaultMessage || "gm"],
         value: price,
         chainId: DEFAULT_CHAIN_ID,
       });
@@ -342,7 +368,7 @@ export default function RigDetailPage() {
       showMineResult("failure");
       resetWrite();
     }
-  }, [address, connect, customMessage, rigState, rigAddress, resetMineResult, resetWrite, showMineResult, writeContract]);
+  }, [address, connect, customMessage, rigState, rigAddress, resetMineResult, resetWrite, showMineResult, writeContract, tokenMetadata]);
 
   // Trade handlers
   const handleTrade = useCallback(async () => {
@@ -602,31 +628,6 @@ export default function RigDetailPage() {
   const minerAvatarUrl =
     minerProfile?.user?.pfpUrl ??
     `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(minerAddress.toLowerCase())}`;
-
-  // Fetch token metadata from IPFS
-  const { data: tokenMetadata } = useQuery<{
-    image?: string;
-    description?: string;
-    links?: string[];
-    // Legacy format support
-    website?: string;
-    twitter?: string;
-    telegram?: string;
-    discord?: string;
-  }>({
-    queryKey: ["tokenMetadata", rigState?.unitUri],
-    queryFn: async () => {
-      if (!rigState?.unitUri) return null;
-      const metadataUrl = ipfsToGateway(rigState.unitUri);
-      if (!metadataUrl) return null;
-      const response = await fetch(metadataUrl);
-      if (!response.ok) return null;
-      return response.json();
-    },
-    enabled: !!rigState?.unitUri,
-    staleTime: STALE_TIME_PROFILE_MS,
-    retry: false,
-  });
 
   // Token logo from metadata
   const tokenLogoUrl = tokenMetadata?.image ? ipfsToGateway(tokenMetadata.image) : null;
