@@ -1,7 +1,7 @@
 export const CONTRACT_ADDRESSES = {
   // Core launchpad contracts
-  core: "0x158Fdaf6b540DFC477448848cB0C28D9bcc7914C",
-  multicall: "0x796bc75fb33AaDe7D8FB7cfB1BF3C73B28e4F0B4",
+  core: "0x7e224d1912D132Cfb82dc44565A424913ac764aC",
+  multicall: "0x163E732263E65C5fACdfa136e91E07b219Bb391E",
   // Token addresses
   weth: "0x4200000000000000000000000000000000000006",
   donut: "0xae4a37d554c6d6f3e398546d8566b25052e0169c",
@@ -555,7 +555,7 @@ export type LaunchParams = {
 // Default launch parameters
 export const LAUNCH_DEFAULTS = {
   uri: "", // metadata URI for the unit token (can be set later by team)
-  unitAmount: BigInt("100000000000000000000"), // 100 tokens (100e18)
+  unitAmount: BigInt("10000000000000000000000"), // 10000 tokens (10000e18)
   initialUps: BigInt("4000000000000000000"), // 4 tokens/sec
   tailUps: BigInt("10000000000000000"), // 0.01 tokens/sec
   halvingPeriod: BigInt(30 * 24 * 60 * 60), // 30 days
