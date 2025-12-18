@@ -129,6 +129,7 @@ export default function RigDetailPage() {
   const [selectedTimeframe, setSelectedTimeframe] = useState<"1D" | "1W" | "1M" | "ALL">("1D");
   const [showHeaderTicker, setShowHeaderTicker] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [lastMineDetails, setLastMineDetails] = useState<{
     priceSpent: string;
     message: string;
@@ -916,16 +917,31 @@ export default function RigDetailPage() {
             <div className="px-2 mt-6">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-base font-bold">Miner</h2>
-                {isCurrentUserMiner && (
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={handleShareMine}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-xs text-purple-400"
-                    title="Share to Farcaster"
+                    onClick={async () => {
+                      const rigUrl = `${window.location.origin}/rig/${rigAddress}`;
+                      await navigator.clipboard.writeText(rigUrl);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 2000);
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-xs text-zinc-400"
+                    title="Copy link"
                   >
-                    <Share2 className="w-3.5 h-3.5" />
-                    Share
+                    {copiedLink ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedLink ? "Copied" : "Share"}
                   </button>
-                )}
+                  {isCurrentUserMiner && (
+                    <button
+                      onClick={handleShareMine}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-colors text-xs text-purple-400"
+                      title="Cast to Farcaster"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      Cast
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-3 mb-4">
                 <Avatar className="h-10 w-10">
