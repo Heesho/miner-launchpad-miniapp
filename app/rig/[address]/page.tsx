@@ -918,19 +918,6 @@ export default function RigDetailPage() {
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-base font-bold">Miner</h2>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={async () => {
-                      const rigUrl = `${window.location.origin}/rig/${rigAddress}`;
-                      await navigator.clipboard.writeText(rigUrl);
-                      setCopiedLink(true);
-                      setTimeout(() => setCopiedLink(false), 2000);
-                    }}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-xs text-zinc-400"
-                    title="Copy link"
-                  >
-                    {copiedLink ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copiedLink ? "Copied" : "Share"}
-                  </button>
                   {isCurrentUserMiner && (
                     <button
                       onClick={handleShareMine}
@@ -941,6 +928,33 @@ export default function RigDetailPage() {
                       Cast
                     </button>
                   )}
+                  <button
+                    onClick={async () => {
+                      const rigUrl = `${window.location.origin}/rig/${rigAddress}`;
+                      try {
+                        await navigator.clipboard.writeText(rigUrl);
+                        setCopiedLink(true);
+                        setTimeout(() => setCopiedLink(false), 2000);
+                      } catch {
+                        // Fallback for environments where clipboard API is restricted
+                        const textArea = document.createElement("textarea");
+                        textArea.value = rigUrl;
+                        textArea.style.position = "fixed";
+                        textArea.style.left = "-9999px";
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(textArea);
+                        setCopiedLink(true);
+                        setTimeout(() => setCopiedLink(false), 2000);
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-xs text-zinc-400"
+                    title="Copy link"
+                  >
+                    {copiedLink ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedLink ? "Copied" : "Share"}
+                  </button>
                 </div>
               </div>
               <div className="flex items-center gap-3 mb-4">
