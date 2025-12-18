@@ -46,8 +46,8 @@ export default function LaunchPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [txStep, setTxStep] = useState<"idle" | "uploading" | "launching">("idle");
 
-  // Fixed 10 DONUT fee
-  const donutAmountBigInt = parseEther("10");
+  // Fixed 1000 DONUT fee
+  const donutAmountBigInt = parseEther("1000");
   const [donutUsdPrice, setDonutUsdPrice] = useState<number>(DEFAULT_DONUT_PRICE_USD);
   const [launchResult, setLaunchResult] = useState<
     "success" | "failure" | null
