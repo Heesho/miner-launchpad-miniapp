@@ -25,6 +25,10 @@ const ipfsToGateway = (uri: string) => {
   if (uri.startsWith("ipfs://")) {
     return `${PINATA_GATEWAY}/ipfs/${uri.slice(7)}`;
   }
+  // Handle URLs without protocol (e.g., "domain.com/path") - prepend https://
+  if (!uri.startsWith("http://") && !uri.startsWith("https://") && uri.includes(".")) {
+    return `https://${uri}`;
+  }
   return uri;
 };
 

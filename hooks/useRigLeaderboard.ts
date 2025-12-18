@@ -84,15 +84,20 @@ export function useRigLeaderboard(
     const isCurrentUser = currentUserAddress?.toLowerCase() === address.toLowerCase();
     const isFriend = profile?.fid ? (friendFids?.has(profile.fid) ?? false) : false;
 
+    // Convert decimal strings from subgraph to BigInt (same pattern as useUserRigStats)
+    const minedBigInt = BigInt(Math.floor(parseFloat(entry.mined) * 1e18));
+    const spentBigInt = BigInt(Math.floor(parseFloat(entry.spent) * 1e18));
+    const earnedBigInt = BigInt(Math.floor(parseFloat(entry.earned) * 1e18));
+
     return {
       rank: index + 1,
       address,
-      mined: BigInt(entry.mined),
-      minedFormatted: Number(formatUnits(BigInt(entry.mined), TOKEN_DECIMALS)).toLocaleString(undefined, { maximumFractionDigits: 0 }),
-      spent: BigInt(entry.spent),
-      spentFormatted: Number(formatUnits(BigInt(entry.spent), 18)).toFixed(4),
-      earned: BigInt(entry.earned),
-      earnedFormatted: Number(formatUnits(BigInt(entry.earned), 18)).toFixed(4),
+      mined: minedBigInt,
+      minedFormatted: Number(formatUnits(minedBigInt, TOKEN_DECIMALS)).toLocaleString(undefined, { maximumFractionDigits: 0 }),
+      spent: spentBigInt,
+      spentFormatted: Number(formatUnits(spentBigInt, 18)).toFixed(4),
+      earned: earnedBigInt,
+      earnedFormatted: Number(formatUnits(earnedBigInt, 18)).toFixed(4),
       isCurrentUser,
       isFriend,
       profile: profile ?? null,
