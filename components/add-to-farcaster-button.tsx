@@ -113,7 +113,7 @@ export function AddToFarcasterButton({
         size={size}
         className={cn(
           "gap-2 transition-all",
-          status === "success" && "bg-pink-500 hover:bg-pink-600",
+          status === "success" && "bg-purple-500 hover:bg-purple-600",
           status === "error" && "bg-zinc-700 hover:bg-zinc-600",
           className
         )}

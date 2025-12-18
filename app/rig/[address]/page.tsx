@@ -736,7 +736,7 @@ export default function RigDetailPage() {
         <div ref={headerRef} className="px-2 pb-2">
           <div className="relative flex items-center justify-between">
             <Link href="/explore" className="p-1 -ml-1 hover:opacity-70 transition-opacity z-10">
-              <ArrowLeft className="h-5 w-5 text-pink-500" />
+              <ArrowLeft className="h-5 w-5 text-purple-500" />
             </Link>
             {/* Center ticker - absolutely positioned for true centering */}
             <div
@@ -754,7 +754,7 @@ export default function RigDetailPage() {
                 setMode(mode === "mine" ? "trade" : "mine");
                 setTradeAmount("");
               }}
-              className="px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-600 transition-colors text-black text-xs font-semibold z-10 outline-none focus:outline-none"
+              className="px-3 py-1.5 rounded-lg bg-purple-500 hover:bg-purple-600 transition-colors text-black text-xs font-semibold z-10 outline-none focus:outline-none"
             >
               {mode === "mine" ? "Trade" : "Mine"}
             </button>
@@ -773,7 +773,7 @@ export default function RigDetailPage() {
                 {priceChange24h !== 0 && (
                   <span className={cn(
                     "text-sm font-medium",
-                    priceChange24h >= 0 ? "text-pink-500" : "text-zinc-500"
+                    priceChange24h >= 0 ? "text-purple-500" : "text-zinc-500"
                   )}>
                     {priceChange24h >= 0 ? "+" : ""}{priceChange24h.toFixed(2)}%
                   </span>
@@ -785,7 +785,7 @@ export default function RigDetailPage() {
               {tokenLogoUrl ? (
                 <img src={tokenLogoUrl} alt={tokenSymbol} className="w-12 h-12 object-cover rounded-xl" />
               ) : (
-                <span className="text-lg font-bold text-pink-500">{tokenSymbol.slice(0, 2)}</span>
+                <span className="text-lg font-bold text-purple-500">{tokenSymbol.slice(0, 2)}</span>
               )}
             </div>
           </div>
@@ -804,7 +804,7 @@ export default function RigDetailPage() {
                 className={cn(
                   "flex-1 py-2 text-xs font-medium transition-colors",
                   selectedTimeframe === tf
-                    ? "text-pink-500"
+                    ? "text-purple-500"
                     : "text-zinc-600 hover:text-zinc-400"
                 )}
               >
@@ -851,7 +851,7 @@ export default function RigDetailPage() {
                     {tokenLogoUrl ? (
                       <img src={tokenLogoUrl} alt={tokenSymbol} className="w-4 h-4 rounded-full" />
                     ) : (
-                      <span className="w-4 h-4 rounded-full bg-pink-500 flex items-center justify-center text-[8px] text-black font-bold">
+                      <span className="w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center text-[8px] text-black font-bold">
                         {tokenSymbol.slice(0, 2)}
                       </span>
                     )}
@@ -886,7 +886,7 @@ export default function RigDetailPage() {
                   {tokenLogoUrl ? (
                     <img src={tokenLogoUrl} alt={tokenSymbol} className="w-4 h-4 rounded-full" />
                   ) : (
-                    <span className="w-4 h-4 rounded-full bg-pink-500 flex items-center justify-center text-[8px] text-black font-bold">
+                    <span className="w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center text-[8px] text-black font-bold">
                       {tokenSymbol.slice(0, 2)}
                     </span>
                   )}
@@ -900,7 +900,7 @@ export default function RigDetailPage() {
                   {tokenLogoUrl ? (
                     <img src={tokenLogoUrl} alt={tokenSymbol} className="w-4 h-4 rounded-full" />
                   ) : (
-                    <span className="w-4 h-4 rounded-full bg-pink-500 flex items-center justify-center text-[8px] text-black font-bold">
+                    <span className="w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center text-[8px] text-black font-bold">
                       {tokenSymbol.slice(0, 2)}
                     </span>
                   )}
@@ -1005,7 +1005,7 @@ export default function RigDetailPage() {
                 >
                   <span>{tokenSymbol}</span>
                   {copiedAddress === rigInfo.unitAddress ? (
-                    <Check className="w-3 h-3 text-pink-500" />
+                    <Check className="w-3 h-3 text-purple-500" />
                   ) : (
                     <Copy className="w-3 h-3" />
                   )}
@@ -1018,7 +1018,7 @@ export default function RigDetailPage() {
                 >
                   <span>{tokenSymbol}-DONUT LP</span>
                   {copiedAddress === lpAddress ? (
-                    <Check className="w-3 h-3 text-pink-500" />
+                    <Check className="w-3 h-3 text-purple-500" />
                   ) : (
                     <Copy className="w-3 h-3" />
                   )}
@@ -1099,7 +1099,7 @@ export default function RigDetailPage() {
                         "w-[calc(50vw-16px)] max-w-[244px] py-2.5 rounded-lg font-semibold transition-all text-sm",
                         mineResult === "failure"
                           ? "bg-zinc-700 text-white"
-                          : "bg-pink-500 text-black hover:bg-pink-600 active:scale-[0.98]",
+                          : "bg-purple-500 text-black hover:bg-purple-600 active:scale-[0.98]",
                         isMineDisabled && !mineResult && "opacity-40 cursor-not-allowed"
                       )}
                     >
@@ -1138,7 +1138,7 @@ export default function RigDetailPage() {
                       ) : tokenLogoUrl ? (
                         <img src={tokenLogoUrl} alt={tokenSymbol} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-xs font-bold text-pink-500">{tokenSymbol.slice(0, 2)}</span>
+                        <span className="text-xs font-bold text-purple-500">{tokenSymbol.slice(0, 2)}</span>
                       )}
                     </div>
                     <input
@@ -1189,7 +1189,7 @@ export default function RigDetailPage() {
                         tokenLogoUrl ? (
                           <img src={tokenLogoUrl} alt={tokenSymbol} className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-xs font-bold text-pink-500">{tokenSymbol.slice(0, 2)}</span>
+                          <span className="text-xs font-bold text-purple-500">{tokenSymbol.slice(0, 2)}</span>
                         )
                       ) : (
                         <img src="https://assets.coingecko.com/coins/images/279/small/ethereum.png" alt="ETH" className="w-full h-full object-cover" />
@@ -1241,7 +1241,7 @@ export default function RigDetailPage() {
                   onClick={handleTrade}
                   disabled={!canTrade || isTradePending || tradeResult !== null}
                   className={cn(
-                    "w-full py-3 rounded-lg font-semibold transition-all text-sm bg-pink-500 text-black hover:bg-pink-600",
+                    "w-full py-3 rounded-lg font-semibold transition-all text-sm bg-purple-500 text-black hover:bg-purple-600",
                     (!canTrade || isTradePending || tradeResult !== null) && "cursor-not-allowed",
                     (!canTrade || isTradePending) && tradeResult === null && "opacity-40"
                   )}

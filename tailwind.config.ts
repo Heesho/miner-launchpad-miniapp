@@ -7,7 +7,15 @@ const config: Config = {
     "./lib/**/*.{ts,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        purple: {
+          400: "#b48aff",
+          500: "#a06fff",
+          600: "#8a5fe6",
+        },
+      },
+    },
   },
 };
 

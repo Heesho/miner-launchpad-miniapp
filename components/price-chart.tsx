@@ -13,7 +13,7 @@ type PriceChartProps = {
 export function PriceChart({
   data,
   isLoading = false,
-  color = "#ec4899",
+  color = "#a06fff",
   height = 200,
 }: PriceChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);

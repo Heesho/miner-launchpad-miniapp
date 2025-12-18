@@ -76,7 +76,7 @@ export function RigCard({ rig, ethUsdPrice = 3500, isTopBump = false, isNewBump 
               className="w-12 h-12 object-cover rounded-xl"
             />
           ) : (
-            <span className="text-pink-500 font-bold text-lg">
+            <span className="text-purple-500 font-bold text-lg">
               {rig.tokenSymbol.slice(0, 2)}
             </span>
           )}
@@ -94,7 +94,7 @@ export function RigCard({ rig, ethUsdPrice = 3500, isTopBump = false, isNewBump 
 
         {/* Price */}
         <div className="flex-shrink-0 text-right">
-          <div className="text-sm font-semibold text-pink-500">
+          <div className="text-sm font-semibold text-purple-500">
             {formatEth(rig.price, 5)} ETH
           </div>
           <div className="text-xs text-gray-500">

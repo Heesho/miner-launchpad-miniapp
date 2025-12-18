@@ -113,11 +113,11 @@ function LpPairIcon({
             className="w-full h-full object-cover"
           />
         ) : (
-          <span className={cn(s.fallbackText, "font-bold text-pink-500")}>{fallbackLetter}</span>
+          <span className={cn(s.fallbackText, "font-bold text-purple-500")}>{fallbackLetter}</span>
         )}
       </div>
       {/* DONUT token (right/back) - donut shape, behind unit */}
-      <div className={cn(s.donut, "rounded-full bg-pink-500 flex items-center justify-center z-10")}>
+      <div className={cn(s.donut, "rounded-full bg-purple-500 flex items-center justify-center z-10")}>
         <div className={cn(s.donutHole, "rounded-full bg-black")} />
       </div>
     </div>
@@ -182,7 +182,7 @@ function AuctionCard({
       className={cn(
         "relative rounded-xl p-3 cursor-pointer transition-all bg-zinc-900 mb-1.5",
         isSelected
-          ? "ring-2 ring-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.3)]"
+          ? "ring-2 ring-purple-500 shadow-[0_0_15px_rgba(160,111,255,0.3)]"
           : "ring-1 ring-zinc-800 hover:ring-zinc-700"
       )}
     >
@@ -194,7 +194,7 @@ function AuctionCard({
           </div>
           <div className="flex items-center gap-1.5 h-6">
             <LpPairIcon rigUri={rigUri} tokenSymbol={tokenSymbol} />
-            <span className="text-sm font-bold text-pink-500">
+            <span className="text-sm font-bold text-purple-500">
               {formatEth(auction.auctionState.price, 4)}
             </span>
           </div>
@@ -516,7 +516,7 @@ export default function AuctionsPage() {
                       href={`https://app.uniswap.org/explore/pools/base/${selectedAuction.auctionState.paymentToken}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-pink-500 hover:text-pink-400"
+                      className="text-purple-500 hover:text-purple-400"
                     >
                       Get LP
                     </a>
@@ -542,7 +542,7 @@ export default function AuctionsPage() {
                     </span>
                   </div>
                   <Button
-                    className="w-[calc(50vw-16px)] max-w-[244px] py-2.5 text-sm font-semibold rounded-lg bg-pink-500 hover:bg-pink-600 text-black"
+                    className="w-[calc(50vw-16px)] max-w-[244px] py-2.5 text-sm font-semibold rounded-lg bg-purple-500 hover:bg-purple-600 text-black"
                     onClick={() => selectedAuction && handleBuy(selectedAuction)}
                     disabled={isBuying || hasInsufficientBalance}
                   >

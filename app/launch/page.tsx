@@ -46,8 +46,8 @@ export default function LaunchPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [txStep, setTxStep] = useState<"idle" | "uploading" | "launching">("idle");
 
-  // Fixed 1 DONUT fee
-  const donutAmountBigInt = parseEther("1");
+  // Fixed 10 DONUT fee
+  const donutAmountBigInt = parseEther("10");
   const [donutUsdPrice, setDonutUsdPrice] = useState<number>(DEFAULT_DONUT_PRICE_USD);
   const [launchResult, setLaunchResult] = useState<
     "success" | "failure" | null
@@ -225,7 +225,7 @@ export default function LaunchPage() {
     if (!tokenSymbol.trim()) return "Token symbol is required";
     if (tokenSymbol.length > 10) return "Symbol must be 10 characters or less";
     if (userDonutBalance !== undefined && donutAmountBigInt > userDonutBalance) {
-      return "Insufficient DONUT balance (need 1 DONUT)";
+      return "Insufficient DONUT balance (need 10 DONUT)";
     }
     return null;
   }, [tokenName, tokenSymbol, donutAmountBigInt, userDonutBalance]);
@@ -543,19 +543,19 @@ export default function LaunchPage() {
               <div className="flex-1">
                 <div className="text-xs text-zinc-500 mb-1">Launch fee</div>
                 <div className="flex items-center gap-1.5">
-                  <span className="inline-block w-5 h-5 rounded-full bg-pink-500 flex items-center justify-center">
+                  <span className="inline-block w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
                     <span className="w-2 h-2 rounded-full bg-black" />
                   </span>
-                  <span className="text-lg font-semibold text-white">1</span>
+                  <span className="text-lg font-semibold text-white">10</span>
                 </div>
-                <div className="text-xs text-zinc-600">~${donutUsdPrice.toFixed(2)}</div>
+                <div className="text-xs text-zinc-600">~${(donutUsdPrice * 10).toFixed(2)}</div>
               </div>
 
               {/* Balance and Button */}
               <div className="text-right">
                 <div className="flex items-center justify-end gap-1 text-[10px] text-zinc-500 mb-1">
                   <span>Balance:</span>
-                  <span className="inline-block w-4 h-4 rounded-full bg-pink-500 flex items-center justify-center">
+                  <span className="inline-block w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center">
                     <span className="w-1.5 h-1.5 rounded-full bg-black" />
                   </span>
                   <span className="text-white font-medium">
@@ -567,7 +567,7 @@ export default function LaunchPage() {
                   </span>
                 </div>
                 <Button
-                  className="w-[calc(50vw-16px)] max-w-[244px] py-2.5 text-sm font-semibold rounded-lg bg-pink-500 hover:bg-pink-600 text-black transition-all disabled:cursor-not-allowed disabled:opacity-40"
+                  className="w-[calc(50vw-16px)] max-w-[244px] py-2.5 text-sm font-semibold rounded-lg bg-purple-500 hover:bg-purple-600 text-black transition-all disabled:cursor-not-allowed disabled:opacity-40"
                   onClick={handleLaunch}
                   disabled={isLaunchDisabled}
                 >

@@ -25,7 +25,7 @@ export function NavBar() {
           className={cn(
             "flex items-center justify-center p-3 transition-colors rounded-full",
             pathname === "/explore" || isRigPage
-              ? "text-pink-500"
+              ? "text-purple-500"
               : "text-gray-500 hover:text-gray-300"
           )}
         >
@@ -37,7 +37,7 @@ export function NavBar() {
           className={cn(
             "flex items-center justify-center p-3 transition-colors rounded-full",
             pathname === "/launch"
-              ? "text-pink-500"
+              ? "text-purple-500"
               : "text-gray-500 hover:text-gray-300"
           )}
         >
@@ -49,7 +49,7 @@ export function NavBar() {
           className={cn(
             "flex items-center justify-center p-3 transition-colors rounded-full",
             pathname === "/auctions"
-              ? "text-pink-500"
+              ? "text-purple-500"
               : "text-gray-500 hover:text-gray-300"
           )}
         >

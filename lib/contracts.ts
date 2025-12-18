@@ -555,7 +555,7 @@ export type LaunchParams = {
 // Default launch parameters
 export const LAUNCH_DEFAULTS = {
   uri: "", // metadata URI for the unit token (can be set later by team)
-  unitAmount: BigInt("10000000000000000000"), // 10 tokens (10e18)
+  unitAmount: BigInt("100000000000000000000"), // 100 tokens (100e18)
   initialUps: BigInt("4000000000000000000"), // 4 tokens/sec
   tailUps: BigInt("10000000000000000"), // 0.01 tokens/sec
   halvingPeriod: BigInt(30 * 24 * 60 * 60), // 30 days
