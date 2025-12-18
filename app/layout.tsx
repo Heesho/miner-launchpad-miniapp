@@ -2,7 +2,7 @@ import "@/app/globals.css";
 import type { Metadata } from "next";
 import { Providers } from "@/components/providers";
 
-const appDomain = "https://miner-launchpad.vercel.app";
+const appDomain = "https://glazecorp-franchiser.vercel.app";
 const heroImageUrl = `${appDomain}/media/hero.png`;
 const splashImageUrl = `${appDomain}/media/splash.png`;
 
@@ -10,10 +10,10 @@ const miniAppEmbed = {
   version: "1",
   imageUrl: heroImageUrl,
   button: {
-    title: "Launch & Mine",
+    title: "Open a Franchise!",
     action: {
       type: "launch_miniapp" as const,
-      name: "Miner Launchpad",
+      name: "Franchiser",
       url: appDomain,
       splashImageUrl,
       splashBackgroundColor: "#000000",
@@ -22,11 +22,11 @@ const miniAppEmbed = {
 };
 
 export const metadata: Metadata = {
-  title: "Miner Launchpad",
-  description: "Launch, mine, and earn tokens on Base. A decentralized token launchpad with fair Dutch auction mining.",
+  title: "Franchiser",
+  description: "Instantly deploy tokens as mining projects. Customize your settings and launch with the click of a button.",
   openGraph: {
-    title: "Miner Launchpad",
-    description: "Launch your own mining rig, mine on any rig, and participate in treasury auctions.",
+    title: "Franchiser, by Glaze Corp",
+    description: "Instantly Deploy Mining Tokens.",
     url: appDomain,
     images: [
       {
@@ -36,7 +36,6 @@ export const metadata: Metadata = {
   },
   other: {
     "fc:miniapp": JSON.stringify(miniAppEmbed),
-    "base:app_id": "6939ca4be6be54f5ed71d538",
   },
 };
 
