@@ -96,7 +96,7 @@ function MineHistoryItem({ mine, timeAgo }: { mine: { id: string; miner: string;
         )}
       </div>
       <div className="text-xs flex-shrink-0 text-right">
-        <div className="text-white">Ξ{Number(formatEther(mine.price)).toFixed(4)}</div>
+        <div className="text-white">Ξ{Number(formatEther(mine.spent)).toFixed(4)}</div>
         <div className="text-zinc-500">{timeAgo(mine.timestamp)}</div>
       </div>
     </div>
