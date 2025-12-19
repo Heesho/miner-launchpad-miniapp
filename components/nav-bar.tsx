@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Search, Rocket, Gavel } from "lucide-react";
+import { Search, Rocket, Gavel, Info, User } from "lucide-react";
 
 export function NavBar() {
   const pathname = usePathname();
@@ -19,41 +19,70 @@ export function NavBar() {
         paddingTop: "12px",
       }}
     >
-      <div className="flex justify-around items-center max-w-[520px] mx-auto px-8">
+      <div className="flex justify-around items-center max-w-[520px] mx-auto px-4">
+        {/* Explore */}
         <Link
           href="/explore"
           className={cn(
-            "flex items-center justify-center p-3 transition-colors rounded-full",
+            "flex items-center justify-center p-2.5 transition-colors rounded-full",
             pathname === "/explore" || isRigPage
               ? "text-purple-500"
               : "text-gray-500 hover:text-gray-300"
           )}
         >
-          <Search className="w-6 h-6" />
+          <Search className="w-5 h-5" />
         </Link>
 
-        <Link
-          href="/launch"
-          className={cn(
-            "flex items-center justify-center p-3 transition-colors rounded-full",
-            pathname === "/launch"
-              ? "text-purple-500"
-              : "text-gray-500 hover:text-gray-300"
-          )}
-        >
-          <Rocket className="w-6 h-6" />
-        </Link>
-
+        {/* Auctions */}
         <Link
           href="/auctions"
           className={cn(
-            "flex items-center justify-center p-3 transition-colors rounded-full",
+            "flex items-center justify-center p-2.5 transition-colors rounded-full",
             pathname === "/auctions"
               ? "text-purple-500"
               : "text-gray-500 hover:text-gray-300"
           )}
         >
-          <Gavel className="w-6 h-6" />
+          <Gavel className="w-5 h-5" />
+        </Link>
+
+        {/* Launch (center) */}
+        <Link
+          href="/launch"
+          className={cn(
+            "flex items-center justify-center p-3 transition-colors rounded-full bg-purple-500/20",
+            pathname === "/launch"
+              ? "text-purple-500"
+              : "text-purple-400 hover:text-purple-300"
+          )}
+        >
+          <Rocket className="w-6 h-6" />
+        </Link>
+
+        {/* Info */}
+        <Link
+          href="/info"
+          className={cn(
+            "flex items-center justify-center p-2.5 transition-colors rounded-full",
+            pathname === "/info"
+              ? "text-purple-500"
+              : "text-gray-500 hover:text-gray-300"
+          )}
+        >
+          <Info className="w-5 h-5" />
+        </Link>
+
+        {/* Profile */}
+        <Link
+          href="/profile"
+          className={cn(
+            "flex items-center justify-center p-2.5 transition-colors rounded-full",
+            pathname === "/profile"
+              ? "text-purple-500"
+              : "text-gray-500 hover:text-gray-300"
+          )}
+        >
+          <User className="w-5 h-5" />
         </Link>
       </div>
     </nav>

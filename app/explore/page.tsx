@@ -3,11 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { Search } from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NavBar } from "@/components/nav-bar";
 import { RigCard } from "@/components/rig-card";
 import { useExploreRigs, type SortOption } from "@/hooks/useAllRigs";
-import { useFarcaster, getUserDisplayName, getUserHandle, initialsFrom } from "@/hooks/useFarcaster";
+import { useFarcaster } from "@/hooks/useFarcaster";
 import { cn, getEthPrice } from "@/lib/utils";
 import { DEFAULT_ETH_PRICE_USD, PRICE_REFETCH_INTERVAL_MS } from "@/lib/constants";
 
@@ -25,7 +24,7 @@ export default function ExplorePage() {
   const prevTopRigRef = useRef<string | null>(null);
 
   // Farcaster context and wallet connection
-  const { user, address } = useFarcaster();
+  const { address } = useFarcaster();
 
   // Get rigs data
   const { rigs, isLoading } = useExploreRigs(sortBy, searchQuery, address);
@@ -64,10 +63,6 @@ export default function ExplorePage() {
     return () => clearInterval(interval);
   }, []);
 
-  const userDisplayName = getUserDisplayName(user);
-  const userHandle = getUserHandle(user);
-  const userAvatarUrl = user?.pfpUrl ?? null;
-
   return (
     <main className="flex h-screen w-screen justify-center overflow-hidden bg-black font-mono text-white">
       <div
@@ -79,28 +74,8 @@ export default function ExplorePage() {
       >
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between mb-2">
+          <div className="mb-2">
             <h1 className="text-2xl font-bold tracking-wide">EXPLORE</h1>
-            {user ? (
-              <div className="flex items-center gap-2 rounded-full bg-black px-3 py-1">
-                <Avatar className="h-8 w-8 border border-zinc-800">
-                  <AvatarImage
-                    src={userAvatarUrl || undefined}
-                    alt={userDisplayName}
-                    className="object-cover"
-                  />
-                  <AvatarFallback className="bg-zinc-800 text-white">
-                    {initialsFrom(userDisplayName)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="leading-tight text-left">
-                  <div className="text-sm font-bold">{userDisplayName}</div>
-                  {userHandle ? (
-                    <div className="text-xs text-gray-400">{userHandle}</div>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
           </div>
 
           {/* Search Bar */}

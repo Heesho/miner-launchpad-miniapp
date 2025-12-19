@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Flame } from "lucide-react";
 import { formatEther, type Address } from "viem";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { NavBar } from "@/components/nav-bar";
 import { useAllRigAddresses } from "@/hooks/useAllRigs";
@@ -13,7 +12,7 @@ import {
   type AuctionListItem,
 } from "@/hooks/useAuctionState";
 import { useRigInfo, useRigState } from "@/hooks/useRigState";
-import { useFarcaster, getUserDisplayName, getUserHandle, initialsFrom } from "@/hooks/useFarcaster";
+import { useFarcaster } from "@/hooks/useFarcaster";
 import {
   useBatchedTransaction,
   encodeApproveCall,
@@ -223,7 +222,7 @@ export default function AuctionsPage() {
   );
 
   // Farcaster context and wallet connection
-  const { user, address, isConnected, connect } = useFarcaster();
+  const { address, isConnected, connect } = useFarcaster();
 
   // Batched transaction hook for approve + buy
   const {
@@ -363,10 +362,6 @@ export default function AuctionsPage() {
     [address, connect, executeBatch, resetBatch]
   );
 
-  const userDisplayName = getUserDisplayName(user);
-  const userHandle = getUserHandle(user);
-  const userAvatarUrl = user?.pfpUrl ?? null;
-
   // Auto-select first auction if none selected
   useEffect(() => {
     if (sortedAuctions.length > 0 && !selectedAuctionAddress) {
@@ -420,28 +415,8 @@ export default function AuctionsPage() {
       >
         <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="mb-2">
           <h1 className="text-2xl font-bold tracking-wide">AUCTIONS</h1>
-          {user ? (
-            <div className="flex items-center gap-2 rounded-full bg-black px-3 py-1">
-              <Avatar className="h-8 w-8 border border-zinc-800">
-                <AvatarImage
-                  src={userAvatarUrl || undefined}
-                  alt={userDisplayName}
-                  className="object-cover"
-                />
-                <AvatarFallback className="bg-zinc-800 text-white">
-                  {initialsFrom(userDisplayName)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="leading-tight text-left">
-                <div className="text-sm font-bold">{userDisplayName}</div>
-                {userHandle ? (
-                  <div className="text-xs text-gray-400">{userHandle}</div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
         </div>
 
         {/* Auction Cards List */}
