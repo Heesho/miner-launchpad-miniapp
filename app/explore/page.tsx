@@ -7,8 +7,8 @@ import { NavBar } from "@/components/nav-bar";
 import { RigCard } from "@/components/rig-card";
 import { useExploreRigs, type SortOption } from "@/hooks/useAllRigs";
 import { useFarcaster } from "@/hooks/useFarcaster";
-import { cn, getEthPrice } from "@/lib/utils";
-import { DEFAULT_ETH_PRICE_USD, PRICE_REFETCH_INTERVAL_MS } from "@/lib/constants";
+import { cn, getDonutPrice } from "@/lib/utils";
+import { DEFAULT_DONUT_PRICE_USD, PRICE_REFETCH_INTERVAL_MS } from "@/lib/constants";
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "trending", label: "Bump" },
@@ -19,7 +19,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 export default function ExplorePage() {
   const [sortBy, setSortBy] = useState<SortOption>("trending");
   const [searchQuery, setSearchQuery] = useState("");
-  const [ethUsdPrice, setEthUsdPrice] = useState<number>(DEFAULT_ETH_PRICE_USD);
+  const [donutUsdPrice, setDonutUsdPrice] = useState<number>(DEFAULT_DONUT_PRICE_USD);
   const [newBumpAddress, setNewBumpAddress] = useState<string | null>(null);
   const prevTopRigRef = useRef<string | null>(null);
 
@@ -52,11 +52,11 @@ export default function ExplorePage() {
     prevTopRigRef.current = currentTopRig;
   }, [rigs, sortBy]);
 
-  // Fetch ETH price
+  // Fetch DONUT price
   useEffect(() => {
     const fetchPrice = async () => {
-      const price = await getEthPrice();
-      setEthUsdPrice(price);
+      const price = await getDonutPrice();
+      setDonutUsdPrice(price);
     };
     fetchPrice();
     const interval = setInterval(fetchPrice, PRICE_REFETCH_INTERVAL_MS);
@@ -124,7 +124,7 @@ export default function ExplorePage() {
                 <RigCard
                   key={rig.address}
                   rig={rig}
-                  ethUsdPrice={ethUsdPrice}
+                  donutUsdPrice={donutUsdPrice}
                   isTopBump={sortBy === "trending" && index === 0}
                   isNewBump={rig.address === newBumpAddress}
                 />

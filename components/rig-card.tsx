@@ -20,13 +20,22 @@ const formatEth = (value: bigint, maximumFractionDigits = 4) => {
 
 type RigCardProps = {
   rig: RigListItem;
-  ethUsdPrice?: number;
+  donutUsdPrice?: number;
   isTopBump?: boolean;
   isNewBump?: boolean;
 };
 
-export function RigCard({ rig, ethUsdPrice = 3500, isTopBump = false, isNewBump = false }: RigCardProps) {
-  const priceUsd = Number(formatEther(rig.price)) * ethUsdPrice;
+const formatUsd = (value: number) => {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(2)}K`;
+  return `$${value.toFixed(2)}`;
+};
+
+export function RigCard({ rig, donutUsdPrice = 0.01, isTopBump = false, isNewBump = false }: RigCardProps) {
+  // Calculate market cap: totalMinted * unitPrice (in DONUT) * donutUsdPrice
+  const marketCapUsd = rig.unitPrice > 0n
+    ? Number(formatEther(rig.totalMinted)) * Number(formatEther(rig.unitPrice)) * donutUsdPrice
+    : 0;
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   // Fetch metadata to get image URL
@@ -82,13 +91,13 @@ export function RigCard({ rig, ethUsdPrice = 3500, isTopBump = false, isNewBump 
           </div>
         </div>
 
-        {/* Price */}
+        {/* Price & Market Cap */}
         <div className="flex-shrink-0 text-right">
           <div className="text-sm font-semibold text-purple-500">
             {formatEth(rig.price, 5)} ETH
           </div>
           <div className="text-xs text-gray-500">
-            ${priceUsd.toFixed(2)}
+            {formatUsd(marketCapUsd)} mcap
           </div>
         </div>
       </div>
