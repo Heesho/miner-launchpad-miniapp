@@ -240,6 +240,7 @@ export default function AuctionsPage() {
   );
   const [mode, setMode] = useState<AuctionMode>("buy");
   const [lpUnitAmount, setLpUnitAmount] = useState("");
+  const [lpSuccess, setLpSuccess] = useState(false);
 
   // Farcaster context and wallet connection
   const { address, isConnected, connect } = useFarcaster();
@@ -554,11 +555,16 @@ export default function AuctionsPage() {
   useEffect(() => {
     if (lpBatchState === "success") {
       setLpUnitAmount("");
-      resetLpBatch();
+      setLpSuccess(true);
       // Refetch balances and auction data with delays
       setTimeout(() => refetchBalances(), 1000);
       setTimeout(() => refetchBalances(), 3000);
       setTimeout(() => refetchBalances(), 6000);
+      // Show success for 2 seconds, then reset
+      setTimeout(() => {
+        setLpSuccess(false);
+        resetLpBatch();
+      }, 2000);
     } else if (lpBatchState === "error") {
       resetLpBatch();
     }
@@ -848,16 +854,24 @@ export default function AuctionsPage() {
 
                     {/* Create LP Button */}
                     <Button
-                      className="w-full py-3 text-sm font-semibold rounded-lg bg-purple-500 hover:bg-purple-600 text-black disabled:bg-purple-500/50 disabled:cursor-not-allowed"
+                      className={cn(
+                        "w-full py-3 text-sm font-semibold rounded-lg text-black disabled:bg-purple-500/50 disabled:cursor-not-allowed",
+                        lpSuccess
+                          ? "bg-green-500 hover:bg-green-500"
+                          : "bg-purple-500 hover:bg-purple-600"
+                      )}
                       onClick={handleCreateLp}
                       disabled={
                         isCreatingLp ||
+                        lpSuccess ||
                         parsedUnitAmount === 0n ||
                         hasInsufficientUnitBalance ||
                         hasInsufficientDonutBalance
                       }
                     >
-                      {isCreatingLp ? (
+                      {lpSuccess ? (
+                        "✓ SUCCESS"
+                      ) : isCreatingLp ? (
                         <>
                           {lpBatchState === "confirming" ? "CONFIRMING" : "CREATING"}
                           <AnimatedDots />
