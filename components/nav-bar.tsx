@@ -53,7 +53,7 @@ export function NavBar() {
             "flex items-center justify-center p-3 transition-colors rounded-full bg-purple-500/20",
             pathname === "/launch"
               ? "text-purple-500"
-              : "text-purple-400 hover:text-purple-300"
+              : "text-white hover:text-gray-300"
           )}
         >
           <Rocket className="w-6 h-6" />
