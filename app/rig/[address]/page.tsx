@@ -21,7 +21,7 @@ import { useRigState, useRigInfo } from "@/hooks/useRigState";
 import { useUserRigStats } from "@/hooks/useUserRigStats";
 import { usePriceHistory } from "@/hooks/usePriceHistory";
 import { useMineHistory } from "@/hooks/useMineHistory";
-import { useFarcaster, shareMiningAchievement } from "@/hooks/useFarcaster";
+import { useFarcaster, shareMiningAchievement, viewProfile } from "@/hooks/useFarcaster";
 import { useFriendActivity, getFriendActivityMessage } from "@/hooks/useFriendActivity";
 import { useRigLeaderboard } from "@/hooks/useRigLeaderboard";
 import { Leaderboard } from "@/components/leaderboard";
@@ -66,7 +66,7 @@ function LoadingDots() {
 // Mine history item with Neynar profile
 function MineHistoryItem({ mine, timeAgo }: { mine: { id: string; miner: string; uri: string; price: bigint; spent: bigint; timestamp: number }; timeAgo: (ts: number) => string }) {
   const { data: profile } = useQuery<{
-    user: { displayName: string | null; username: string | null; pfpUrl: string | null } | null;
+    user: { fid: number | null; displayName: string | null; username: string | null; pfpUrl: string | null } | null;
   }>({
     queryKey: ["neynar-user", mine.miner],
     queryFn: async () => {
@@ -80,17 +80,34 @@ function MineHistoryItem({ mine, timeAgo }: { mine: { id: string; miner: string;
 
   const displayName = profile?.user?.displayName ?? profile?.user?.username ?? `${mine.miner.slice(0, 6)}...${mine.miner.slice(-4)}`;
   const avatarUrl = profile?.user?.pfpUrl ?? `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(mine.miner.toLowerCase())}`;
+  const fid = profile?.user?.fid;
+
+  const handleProfileClick = () => {
+    if (fid) viewProfile(fid);
+  };
 
   return (
     <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900/50">
-      <Avatar className="h-8 w-8 flex-shrink-0">
-        <AvatarImage src={avatarUrl} alt={displayName} />
-        <AvatarFallback className="bg-zinc-800 text-white text-xs">
-          {mine.miner.slice(2, 4).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
+      <button
+        onClick={handleProfileClick}
+        disabled={!fid}
+        className={fid ? "cursor-pointer" : "cursor-default"}
+      >
+        <Avatar className="h-8 w-8 flex-shrink-0">
+          <AvatarImage src={avatarUrl} alt={displayName} />
+          <AvatarFallback className="bg-zinc-800 text-white text-xs">
+            {mine.miner.slice(2, 4).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+      </button>
       <div className="flex-1 min-w-0">
-        <div className="text-xs text-zinc-400">{displayName}</div>
+        <button
+          onClick={handleProfileClick}
+          disabled={!fid}
+          className={`text-xs text-zinc-400 ${fid ? "hover:text-purple-400 cursor-pointer" : "cursor-default"}`}
+        >
+          {displayName}
+        </button>
         {mine.uri && (
           <div className="text-sm text-white mt-0.5 break-words">{mine.uri}</div>
         )}
@@ -947,20 +964,30 @@ export default function RigDetailPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3 mb-4">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={minerAvatarUrl} alt={minerDisplayName} />
-                  <AvatarFallback className="bg-zinc-800 text-white text-xs">
-                    {minerAddress.slice(-2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold text-white">
+                <button
+                  onClick={() => minerProfile?.user?.fid && viewProfile(minerProfile.user.fid)}
+                  disabled={!minerProfile?.user?.fid}
+                  className={minerProfile?.user?.fid ? "cursor-pointer" : "cursor-default"}
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={minerAvatarUrl} alt={minerDisplayName} />
+                    <AvatarFallback className="bg-zinc-800 text-white text-xs">
+                      {minerAddress.slice(-2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+                <button
+                  onClick={() => minerProfile?.user?.fid && viewProfile(minerProfile.user.fid)}
+                  disabled={!minerProfile?.user?.fid}
+                  className={`flex-1 text-left ${minerProfile?.user?.fid ? "cursor-pointer" : "cursor-default"}`}
+                >
+                  <div className={`text-sm font-semibold text-white ${minerProfile?.user?.fid ? "hover:text-purple-400" : ""}`}>
                     {minerDisplayName}
                   </div>
                   <div className="text-xs text-zinc-500">
                     {minerAddress.slice(0, 6)}...{minerAddress.slice(-4)}
                   </div>
-                </div>
+                </button>
                 <div className="text-right">
                   <div className="text-xs text-zinc-500">{formatTime(glazeElapsedSeconds)}</div>
                 </div>
@@ -1056,13 +1083,21 @@ export default function RigDetailPage() {
             {hasLauncher && (
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-sm text-zinc-500">Deployed by</span>
-                <Avatar className="h-5 w-5">
-                  <AvatarImage src={launcherAvatarUrl} alt={launcherDisplayName} />
-                  <AvatarFallback className="bg-zinc-800 text-white text-[8px]">
-                    {launcherAddress.slice(2, 4).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-sm font-medium text-white">{launcherDisplayName}</span>
+                <button
+                  onClick={() => launcherProfile?.user?.fid && viewProfile(launcherProfile.user.fid)}
+                  disabled={!launcherProfile?.user?.fid}
+                  className={`flex items-center gap-2 ${launcherProfile?.user?.fid ? "cursor-pointer" : "cursor-default"}`}
+                >
+                  <Avatar className="h-5 w-5">
+                    <AvatarImage src={launcherAvatarUrl} alt={launcherDisplayName} />
+                    <AvatarFallback className="bg-zinc-800 text-white text-[8px]">
+                      {launcherAddress.slice(2, 4).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className={`text-sm font-medium text-white ${launcherProfile?.user?.fid ? "hover:text-purple-400" : ""}`}>
+                    {launcherDisplayName}
+                  </span>
+                </button>
               </div>
             )}
             <p className="text-sm text-zinc-400 mb-3">
@@ -1207,15 +1242,21 @@ export default function RigDetailPage() {
               <div className="flex items-center gap-2 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
                 <div className="flex -space-x-2">
                   {friendActivity.friends.slice(0, 3).map((friend) => (
-                    <Avatar key={friend.fid} className="h-6 w-6 border-2 border-black">
-                      <AvatarImage
-                        src={friend.pfpUrl ?? `https://api.dicebear.com/7.x/shapes/svg?seed=${friend.fid}`}
-                        alt={friend.displayName || friend.username || "Friend"}
-                      />
-                      <AvatarFallback className="bg-zinc-800 text-white text-[8px]">
-                        {(friend.displayName || friend.username || "?").slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    <button
+                      key={friend.fid}
+                      onClick={() => viewProfile(friend.fid)}
+                      className="cursor-pointer"
+                    >
+                      <Avatar className="h-6 w-6 border-2 border-black">
+                        <AvatarImage
+                          src={friend.pfpUrl ?? `https://api.dicebear.com/7.x/shapes/svg?seed=${friend.fid}`}
+                          alt={friend.displayName || friend.username || "Friend"}
+                        />
+                        <AvatarFallback className="bg-zinc-800 text-white text-[8px]">
+                          {(friend.displayName || friend.username || "?").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </button>
                   ))}
                 </div>
                 <span className="text-sm text-purple-300">{friendActivityMessage}</span>

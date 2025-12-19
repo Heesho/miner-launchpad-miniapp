@@ -192,3 +192,17 @@ export async function shareLaunch(options: {
     embeds: [appUrl],
   });
 }
+
+/**
+ * View a Farcaster user's profile
+ * Opens the native Farcaster profile view
+ */
+export async function viewProfile(fid: number): Promise<boolean> {
+  try {
+    await sdk.actions.viewProfile({ fid });
+    return true;
+  } catch (error) {
+    console.error("Failed to view profile:", error);
+    return false;
+  }
+}
