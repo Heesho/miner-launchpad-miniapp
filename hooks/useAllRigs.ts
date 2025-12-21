@@ -337,10 +337,7 @@ export function useExploreRigs(
       };
     });
 
-    // Re-sort by totalRevenue since subgraph sorts strings lexicographically
-    if (sortBy === "top") {
-      combinedRigs.sort((a, b) => (a.totalRevenue > b.totalRevenue ? -1 : 1));
-    }
+    // Note: "top" rigs are already sorted by latest epoch spent from subgraph
   }
 
   // Filter out rigs without valid metadata (must have ipfs:// URI)

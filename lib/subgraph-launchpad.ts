@@ -348,6 +348,37 @@ export const GET_TOP_RIGS_QUERY = gql`
   }
 `;
 
+// Get recent epochs (for top rigs by latest epoch spent)
+export const GET_RECENT_EPOCHS_QUERY = gql`
+  query GetRecentEpochs($first: Int!) {
+    epoches(first: $first, orderBy: startTime, orderDirection: desc) {
+      id
+      rig {
+        id
+        launchpad {
+          id
+        }
+        launcher {
+          id
+        }
+        unit
+        auction
+        lpToken
+        tokenName
+        tokenSymbol
+        epochId
+        revenue
+        teamRevenue
+        minted
+        createdAt
+        createdAtBlock
+      }
+      spent
+      startTime
+    }
+  }
+`;
+
 // API Functions
 
 export async function getLaunchpadStats(): Promise<SubgraphLaunchpad | null> {
@@ -512,14 +543,44 @@ export async function getTrendingRigs(first = 20): Promise<SubgraphRig[]> {
   }
 }
 
+type EpochWithRig = {
+  id: string;
+  rig: SubgraphRig;
+  spent: string;
+  startTime: string;
+};
+
 export async function getTopRigs(first = 20): Promise<SubgraphRig[]> {
   try {
-    const data = await client.request<{ rigs: SubgraphRig[] }>(
-      GET_TOP_RIGS_QUERY,
-      { first }
+    // Fetch epochs sorted by startTime (most recent first)
+    // We fetch more epochs than needed to ensure we get enough unique rigs
+    const data = await client.request<{ epoches: EpochWithRig[] }>(
+      GET_RECENT_EPOCHS_QUERY,
+      { first: first * 10 }
     );
-    return data.rigs;
-  } catch {
+
+    // Deduplicate by rig, keeping only the FIRST (latest) epoch for each rig
+    const rigMap = new Map<string, { rig: SubgraphRig; spent: number }>();
+
+    for (const epoch of data.epoches) {
+      const rigId = epoch.rig.id.toLowerCase();
+      const spentAmount = parseFloat(epoch.spent);
+
+      // Only keep the first occurrence (latest epoch) for each rig
+      if (!rigMap.has(rigId)) {
+        rigMap.set(rigId, { rig: epoch.rig, spent: spentAmount });
+      }
+    }
+
+    // Sort by latest epoch's spent amount (descending) and return rigs
+    const sortedRigs = Array.from(rigMap.values())
+      .sort((a, b) => b.spent - a.spent)
+      .slice(0, first)
+      .map((item) => item.rig);
+
+    return sortedRigs;
+  } catch (error) {
+    console.error("[getTopRigs] Error:", error);
     return [];
   }
 }
