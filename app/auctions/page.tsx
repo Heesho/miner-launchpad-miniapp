@@ -268,9 +268,11 @@ export default function AuctionsPage() {
     address
   );
 
-  // Sort auctions by profitability
+  // Filter out auctions with 0 WETH and sort by profitability
   const sortedAuctions = useMemo(() => {
-    return [...auctions].sort((a, b) => {
+    return [...auctions]
+      .filter((auction) => auction.auctionState.wethAccumulated > 0n)
+      .sort((a, b) => {
       // Calculate USD values for auction A
       const aLpUsd =
         Number(formatEther(a.auctionState.price)) *
