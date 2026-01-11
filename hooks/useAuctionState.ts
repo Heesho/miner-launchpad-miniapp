@@ -19,7 +19,8 @@ export function useAuctionState(
     chainId: base.id,
     query: {
       enabled: !!rigAddress,
-      refetchInterval: 3_000,
+      refetchInterval: 15_000, // Reduced from 3s to prevent rate limiting
+      refetchOnWindowFocus: false,
     },
   });
 
@@ -56,7 +57,8 @@ export function useAllAuctionStates(
     contracts,
     query: {
       enabled: rigAddresses.length > 0,
-      refetchInterval: 10_000,
+      refetchInterval: 30_000, // Reduced from 10s to prevent rate limiting
+      refetchOnWindowFocus: false,
     },
   });
 

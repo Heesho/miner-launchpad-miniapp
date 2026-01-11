@@ -17,7 +17,7 @@ export function usePrices() {
     queryFn: getEthPrice,
     staleTime: PRICE_STALE_TIME,
     refetchInterval: PRICE_REFETCH_INTERVAL,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // Prevent duplicate requests on tab focus
   });
 
   const { data: donutPrice = DEFAULT_DONUT_PRICE_USD } = useQuery({
@@ -25,7 +25,7 @@ export function usePrices() {
     queryFn: getDonutPrice,
     staleTime: PRICE_STALE_TIME,
     refetchInterval: PRICE_REFETCH_INTERVAL,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // Prevent duplicate requests on tab focus
   });
 
   return {

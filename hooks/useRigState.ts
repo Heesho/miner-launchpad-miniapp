@@ -31,7 +31,8 @@ export function useRigState(
     chainId: base.id,
     query: {
       enabled: !!rigAddress,
-      refetchInterval: 3_000,
+      refetchInterval: 15_000,
+      refetchOnWindowFocus: false, // Prevent duplicate requests on tab focus
     },
   });
 

@@ -44,8 +44,9 @@ export function useMineHistory(
       return epochs.map(parseEpochToMineMessage).reverse();
     },
     enabled: !!rigAddress,
-    staleTime: 10_000, // 10 seconds
-    refetchInterval: 10_000, // Refetch every 10 seconds for new messages
+    staleTime: 30_000, // 30 seconds
+    refetchInterval: 30_000, // Refetch every 30 seconds for new messages (reduced from 10s)
+    refetchOnWindowFocus: false,
     retry: false, // Don't retry - subgraph may be unavailable
   });
 
@@ -74,8 +75,9 @@ export function useMineHistoryPaginated(
       return epochs.map(parseEpochToMineMessage).reverse();
     },
     enabled: !!rigAddress,
-    staleTime: 10_000,
-    refetchInterval: 10_000,
+    staleTime: 30_000,
+    refetchInterval: 30_000, // Reduced from 10s
+    refetchOnWindowFocus: false,
     retry: false,
   });
 

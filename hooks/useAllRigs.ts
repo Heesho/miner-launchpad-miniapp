@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useReadContract, useReadContracts } from "wagmi";
 import { base } from "wagmi/chains";
@@ -96,8 +97,8 @@ export function useRigList(
   first = 20,
   skip = 0
 ) {
-  // Poll more frequently for trending/bump to catch new mines
-  const refetchInterval = sortBy === "trending" ? 5_000 : 30_000;
+  // Standardized polling frequency to prevent rate limiting
+  const refetchInterval = 60_000; // 60s for all sort types
 
   const { data: rigs, isLoading, error, refetch } = useQuery({
     queryKey: ["rigList", sortBy, first, skip],
@@ -111,8 +112,9 @@ export function useRigList(
       // "new" - sort by createdAt
       return getRigs(first, skip, "createdAt", "desc");
     },
-    staleTime: sortBy === "trending" ? 3_000 : 30_000,
+    staleTime: 45_000, // 45 seconds
     refetchInterval,
+    refetchOnWindowFocus: false,
     retry: false, // Don't retry - fallback to on-chain instead
   });
 
@@ -161,7 +163,8 @@ export function useRigStates(
     contracts,
     query: {
       enabled: rigAddresses.length > 0,
-      refetchInterval: 10_000,
+      refetchInterval: 30_000,
+      refetchOnWindowFocus: false, // Prevent duplicate requests on tab focus
     },
   });
 
@@ -277,73 +280,75 @@ export function useExploreRigs(
   // Get token info for on-chain fallback
   const { tokenInfo } = useRigTokenInfo(useOnChainFallback ? addresses : []);
 
-  // Combine data
-  let combinedRigs: RigListItem[];
+  // Memoize the expensive data transformation to prevent unnecessary recalculations
+  const filteredRigs = useMemo(() => {
+    let combinedRigs: RigListItem[];
 
-  if (useOnChainFallback) {
-    // On-chain only mode
-    combinedRigs = addresses.map((address) => {
-      const onChainState = rigStates.find(
-        (s) => s.address.toLowerCase() === address.toLowerCase()
-      )?.state;
-      const info = tokenInfo.find(
-        (t) => t.rigAddress.toLowerCase() === address.toLowerCase()
-      );
+    if (useOnChainFallback) {
+      // On-chain only mode - create a lookup map for O(1) access
+      const statesMap = new Map(rigStates.map((s) => [s.address.toLowerCase(), s.state]));
+      const tokenInfoMap = new Map(tokenInfo.map((t) => [t.rigAddress.toLowerCase(), t]));
 
-      return {
-        address,
-        unitAddress: info?.unitAddress ?? zeroAddress,
-        tokenName: info?.tokenName ?? "Unknown",
-        tokenSymbol: info?.tokenSymbol ?? "???",
-        rigUri: onChainState?.rigUri ?? "",
-        launcher: zeroAddress, // Not available without subgraph
-        miner: onChainState?.miner ?? zeroAddress,
-        price: onChainState?.price ?? 0n,
-        ups: onChainState?.nextUps ?? 0n,
-        unitPrice: onChainState?.unitPrice ?? 0n,
-        totalMinted: 0n, // Not available without subgraph
-        totalRevenue: 0n, // Not available without subgraph
-        epochCount: 0, // Not available without subgraph
-        createdAt: 0, // Not available without subgraph
-      };
-    });
+      combinedRigs = addresses.map((address) => {
+        const addrLower = address.toLowerCase();
+        const onChainState = statesMap.get(addrLower);
+        const info = tokenInfoMap.get(addrLower);
 
-    // Sort by price (descending) as fallback sorting for top
-    if (sortBy === "top") {
-      combinedRigs.sort((a, b) => (a.price > b.price ? -1 : 1));
+        return {
+          address,
+          unitAddress: info?.unitAddress ?? zeroAddress,
+          tokenName: info?.tokenName ?? "Unknown",
+          tokenSymbol: info?.tokenSymbol ?? "???",
+          rigUri: onChainState?.rigUri ?? "",
+          launcher: zeroAddress, // Not available without subgraph
+          miner: onChainState?.miner ?? zeroAddress,
+          price: onChainState?.price ?? 0n,
+          ups: onChainState?.nextUps ?? 0n,
+          unitPrice: onChainState?.unitPrice ?? 0n,
+          totalMinted: 0n, // Not available without subgraph
+          totalRevenue: 0n, // Not available without subgraph
+          epochCount: 0, // Not available without subgraph
+          createdAt: 0, // Not available without subgraph
+        };
+      });
+
+      // Sort by price (descending) as fallback sorting for top
+      if (sortBy === "top") {
+        combinedRigs.sort((a, b) => (a.price > b.price ? -1 : 1));
+      }
+    } else {
+      // Subgraph mode - create a lookup map for O(1) access
+      const statesMap = new Map(rigStates.map((s) => [s.address.toLowerCase(), s.state]));
+
+      combinedRigs = subgraphRigs.map((subgraphRig: SubgraphRig) => {
+        const onChainState = statesMap.get(subgraphRig.id.toLowerCase());
+
+        return {
+          address: subgraphRig.id.toLowerCase() as `0x${string}`,
+          unitAddress: subgraphRig.unit.toLowerCase() as `0x${string}`,
+          tokenName: subgraphRig.tokenName,
+          tokenSymbol: subgraphRig.tokenSymbol,
+          rigUri: onChainState?.rigUri ?? "",
+          launcher: subgraphRig.launcher.id.toLowerCase() as `0x${string}`,
+          miner: onChainState?.miner ?? zeroAddress,
+          price: onChainState?.price ?? 0n,
+          ups: onChainState?.nextUps ?? 0n,
+          unitPrice: onChainState?.unitPrice ?? 0n,
+          totalMinted: BigInt(Math.floor(parseFloat(subgraphRig.minted) * 1e18)),
+          totalRevenue: BigInt(Math.floor(parseFloat(subgraphRig.revenue) * 1e18)),
+          epochCount: parseInt(subgraphRig.epochId),
+          createdAt: parseInt(subgraphRig.createdAt),
+        };
+      });
+
+      // Note: "top" rigs are already sorted by latest epoch spent from subgraph
     }
-  } else {
-    // Subgraph mode
-    combinedRigs = subgraphRigs.map((subgraphRig: SubgraphRig) => {
-      const onChainState = rigStates.find(
-        (s) => s.address.toLowerCase() === subgraphRig.id.toLowerCase()
-      )?.state;
 
-      return {
-        address: subgraphRig.id.toLowerCase() as `0x${string}`,
-        unitAddress: subgraphRig.unit.toLowerCase() as `0x${string}`,
-        tokenName: subgraphRig.tokenName,
-        tokenSymbol: subgraphRig.tokenSymbol,
-        rigUri: onChainState?.rigUri ?? "",
-        launcher: subgraphRig.launcher.id.toLowerCase() as `0x${string}`,
-        miner: onChainState?.miner ?? zeroAddress,
-        price: onChainState?.price ?? 0n,
-        ups: onChainState?.nextUps ?? 0n,
-        unitPrice: onChainState?.unitPrice ?? 0n,
-        totalMinted: BigInt(Math.floor(parseFloat(subgraphRig.minted) * 1e18)),
-        totalRevenue: BigInt(Math.floor(parseFloat(subgraphRig.revenue) * 1e18)),
-        epochCount: parseInt(subgraphRig.epochId),
-        createdAt: parseInt(subgraphRig.createdAt),
-      };
-    });
-
-    // Note: "top" rigs are already sorted by latest epoch spent from subgraph
-  }
-
-  // Filter out rigs without valid metadata (must have ipfs:// URI)
-  const filteredRigs = combinedRigs.filter(
-    (rig) => rig.rigUri && rig.rigUri.startsWith("ipfs://")
-  );
+    // Filter out rigs without valid metadata (must have ipfs:// URI)
+    return combinedRigs.filter(
+      (rig) => rig.rigUri && rig.rigUri.startsWith("ipfs://")
+    );
+  }, [useOnChainFallback, addresses, rigStates, tokenInfo, subgraphRigs, sortBy]);
 
   // Loading until we have actual data ready to display
   const hasData = filteredRigs.length > 0;

@@ -50,8 +50,9 @@ export function useRigLeaderboard(
     queryKey: ["rig-leaderboard", rigAddress, limit],
     queryFn: () => getRigLeaderboard(rigAddress, limit),
     enabled: !!rigAddress,
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 30 * 1000,
+    staleTime: 60 * 1000, // 60 seconds
+    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: false, // Prevent duplicate requests on tab focus
   });
 
   // Get unique addresses for profile lookup
@@ -74,7 +75,7 @@ export function useRigLeaderboard(
       return data.addressToUser || {};
     },
     enabled: addresses.length > 0,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes - profiles don't change often
   });
 
   // Build leaderboard entries
