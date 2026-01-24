@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowDownUp, Copy, Check, Share2 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -71,6 +71,7 @@ function LoadingDots() {
 export default function RigDetailPage() {
   const params = useParams();
   const rigAddress = params.address as `0x${string}`;
+  const queryClient = useQueryClient();
 
   const [customMessage, setCustomMessage] = useState("");
   const [mineResult, setMineResult] = useState<"success" | "failure" | null>(null);
@@ -291,17 +292,37 @@ export default function RigDetailPage() {
     return () => container.removeEventListener("scroll", handleScroll);
   }, [rigInfo, rigState]); // Re-run when data loads
 
+  // Invalidate all mining-related queries for instant updates
+  const invalidateMiningQueries = useCallback(() => {
+    // Invalidate mine history, user stats, and leaderboard
+    queryClient.invalidateQueries({ queryKey: ["mineHistory", rigAddress] });
+    queryClient.invalidateQueries({ queryKey: ["userRigStats", address, rigAddress] });
+    queryClient.invalidateQueries({ queryKey: ["rig-leaderboard", rigAddress] });
+    // Also refetch the rig state directly
+    refetchRigState();
+  }, [queryClient, rigAddress, address, refetchRigState]);
+
   // Handle receipt
   useEffect(() => {
     if (!receipt) return;
     if (receipt.status === "success" || receipt.status === "reverted") {
       showMineResult(receipt.status === "success" ? "success" : "failure");
-      refetchRigState();
-      if (receipt.status === "success") setCustomMessage("");
+
+      if (receipt.status === "success") {
+        setCustomMessage("");
+        // Invalidate immediately for instant feedback
+        invalidateMiningQueries();
+        // Retry after delays to handle subgraph indexing lag
+        setTimeout(invalidateMiningQueries, 2000);
+        setTimeout(invalidateMiningQueries, 5000);
+      } else {
+        refetchRigState();
+      }
+
       const resetTimer = setTimeout(() => resetWrite(), 500);
       return () => clearTimeout(resetTimer);
     }
-  }, [receipt, refetchRigState, resetWrite, showMineResult]);
+  }, [receipt, refetchRigState, resetWrite, showMineResult, invalidateMiningQueries]);
 
   // Interpolated mining values
   const [interpolatedGlazed, setInterpolatedGlazed] = useState<bigint | null>(null);
