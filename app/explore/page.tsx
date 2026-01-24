@@ -5,10 +5,13 @@ import { Search } from "lucide-react";
 
 import { NavBar } from "@/components/nav-bar";
 import { RigCard } from "@/components/rig-card";
+import { RigListSkeleton } from "@/components/skeleton";
 import { useExploreRigs, type SortOption } from "@/hooks/useAllRigs";
 import { useFarcaster } from "@/hooks/useFarcaster";
-import { cn, getDonutPrice } from "@/lib/utils";
-import { DEFAULT_DONUT_PRICE_USD, PRICE_REFETCH_INTERVAL_MS } from "@/lib/constants";
+import { usePrices } from "@/hooks/usePrices";
+import { usePrefetchMetadata } from "@/hooks/useMetadata";
+import { useDebounce } from "@/hooks/useDebounce";
+import { cn } from "@/lib/utils";
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "trending", label: "Bump" },
@@ -19,15 +22,29 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 export default function ExplorePage() {
   const [sortBy, setSortBy] = useState<SortOption>("trending");
   const [searchQuery, setSearchQuery] = useState("");
-  const [donutUsdPrice, setDonutUsdPrice] = useState<number>(DEFAULT_DONUT_PRICE_USD);
   const [newBumpAddress, setNewBumpAddress] = useState<string | null>(null);
   const prevTopRigRef = useRef<string | null>(null);
+
+  // Debounce search query to avoid excessive API calls while typing
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // Farcaster context and wallet connection
   const { address } = useFarcaster();
 
-  // Get rigs data
-  const { rigs, isLoading } = useExploreRigs(sortBy, searchQuery, address);
+  // Use shared price hook (cached across components)
+  const { donutUsdPrice } = usePrices();
+
+  // Get rigs data with debounced search
+  const { rigs, isLoading } = useExploreRigs(sortBy, debouncedSearchQuery, address);
+
+  // Prefetch metadata for visible rigs
+  const prefetchMetadata = usePrefetchMetadata();
+  useEffect(() => {
+    if (rigs.length > 0) {
+      const rigUris = rigs.map((rig) => rig.rigUri).filter(Boolean);
+      prefetchMetadata(rigUris);
+    }
+  }, [rigs, prefetchMetadata]);
 
   // Track when a new rig bumps to the top
   useEffect(() => {
@@ -51,17 +68,6 @@ export default function ExplorePage() {
 
     prevTopRigRef.current = currentTopRig;
   }, [rigs, sortBy]);
-
-  // Fetch DONUT price
-  useEffect(() => {
-    const fetchPrice = async () => {
-      const price = await getDonutPrice();
-      setDonutUsdPrice(price);
-    };
-    fetchPrice();
-    const interval = setInterval(fetchPrice, PRICE_REFETCH_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <main className="flex h-screen w-screen justify-center overflow-hidden bg-black font-mono text-white">
@@ -110,7 +116,9 @@ export default function ExplorePage() {
 
           {/* Rig List */}
           <div className="flex-1 overflow-y-auto scrollbar-hide">
-            {isLoading ? null : rigs.length === 0 ? (
+            {isLoading ? (
+              <RigListSkeleton count={8} />
+            ) : rigs.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
                 <p className="text-lg font-semibold">No rigs found</p>
                 <p className="text-sm mt-1">

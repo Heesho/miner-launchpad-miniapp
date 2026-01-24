@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, memo } from "react";
 import Link from "next/link";
 import { formatEther } from "viem";
 
@@ -8,8 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NavBar } from "@/components/nav-bar";
 import { useFarcaster, getUserDisplayName, getUserHandle, initialsFrom } from "@/hooks/useFarcaster";
 import { useUserProfile, type UserRigData, type UserLaunchedRig } from "@/hooks/useUserProfile";
-import { cn, getDonutPrice } from "@/lib/utils";
-import { DEFAULT_DONUT_PRICE_USD, PRICE_REFETCH_INTERVAL_MS, ipfsToHttp } from "@/lib/constants";
+import { usePrices } from "@/hooks/usePrices";
+import { useTokenMetadata } from "@/hooks/useMetadata";
+import { cn } from "@/lib/utils";
 
 type TabOption = "mined" | "launched";
 
@@ -24,23 +25,9 @@ const formatTokenAmount = (value: bigint, maximumFractionDigits = 2) => {
   });
 };
 
-function MinedRigCard({ rig }: { rig: UserRigData }) {
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!rig.rigUri) return;
-    const metadataUrl = ipfsToHttp(rig.rigUri);
-    if (!metadataUrl) return;
-
-    fetch(metadataUrl)
-      .then((res) => res.json())
-      .then((metadata) => {
-        if (metadata.image) {
-          setLogoUrl(ipfsToHttp(metadata.image));
-        }
-      })
-      .catch(() => {});
-  }, [rig.rigUri]);
+const MinedRigCard = memo(function MinedRigCard({ rig }: { rig: UserRigData }) {
+  // Use cached metadata hook instead of fetching on every render
+  const { logoUrl } = useTokenMetadata(rig.rigUri);
 
   return (
     <Link href={`/rig/${rig.address}`} className="block mb-1.5">
@@ -77,36 +64,22 @@ function MinedRigCard({ rig }: { rig: UserRigData }) {
       </div>
     </Link>
   );
-}
+});
 
-function LaunchedRigCard({ rig, donutUsdPrice }: { rig: UserLaunchedRig; donutUsdPrice: number }) {
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+const formatUsd = (value: number) => {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(2)}K`;
+  return `$${value.toFixed(2)}`;
+};
 
-  useEffect(() => {
-    if (!rig.rigUri) return;
-    const metadataUrl = ipfsToHttp(rig.rigUri);
-    if (!metadataUrl) return;
-
-    fetch(metadataUrl)
-      .then((res) => res.json())
-      .then((metadata) => {
-        if (metadata.image) {
-          setLogoUrl(ipfsToHttp(metadata.image));
-        }
-      })
-      .catch(() => {});
-  }, [rig.rigUri]);
+const LaunchedRigCard = memo(function LaunchedRigCard({ rig, donutUsdPrice }: { rig: UserLaunchedRig; donutUsdPrice: number }) {
+  // Use cached metadata hook instead of fetching on every render
+  const { logoUrl } = useTokenMetadata(rig.rigUri);
 
   // Calculate market cap: totalMinted * unitPrice (in DONUT) * donutUsdPrice
   const marketCapUsd = rig.unitPrice > 0n
     ? Number(formatEther(rig.totalMinted)) * Number(formatEther(rig.unitPrice)) * donutUsdPrice
     : 0;
-
-  const formatUsd = (value: number) => {
-    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
-    if (value >= 1_000) return `$${(value / 1_000).toFixed(2)}K`;
-    return `$${value.toFixed(2)}`;
-  };
 
   return (
     <Link href={`/rig/${rig.address}`} className="block mb-1.5">
@@ -143,25 +116,16 @@ function LaunchedRigCard({ rig, donutUsdPrice }: { rig: UserLaunchedRig; donutUs
       </div>
     </Link>
   );
-}
+});
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<TabOption>("mined");
-  const [donutUsdPrice, setDonutUsdPrice] = useState<number>(DEFAULT_DONUT_PRICE_USD);
 
   const { user, address } = useFarcaster();
   const { minedRigs, launchedRigs, isLoading } = useUserProfile(address);
 
-  // Fetch DONUT price
-  useEffect(() => {
-    const fetchPrice = async () => {
-      const price = await getDonutPrice();
-      setDonutUsdPrice(price);
-    };
-    fetchPrice();
-    const interval = setInterval(fetchPrice, PRICE_REFETCH_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, []);
+  // Use shared price hook (cached across components)
+  const { donutUsdPrice } = usePrices();
 
   const userDisplayName = getUserDisplayName(user);
   const userHandle = getUserHandle(user);
