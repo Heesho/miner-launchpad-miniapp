@@ -294,7 +294,22 @@ export default function RigDetailPage() {
 
   // Invalidate all mining-related queries for instant updates
   const invalidateMiningQueries = useCallback(() => {
-    // Invalidate mine history, user stats, and leaderboard
+    // Invalidate wagmi's readContract cache for rig state (forces fresh RPC call)
+    queryClient.invalidateQueries({
+      predicate: (query) => {
+        const key = query.queryKey;
+        // Wagmi v2 uses ['readContract', { address, functionName, ... }]
+        if (Array.isArray(key) && key[0] === "readContract") {
+          const params = key[1] as Record<string, unknown> | undefined;
+          // Invalidate multicall getRig queries
+          if (params?.address === CONTRACT_ADDRESSES.multicall) {
+            return true;
+          }
+        }
+        return false;
+      },
+    });
+    // Invalidate mine history, user stats, and leaderboard (subgraph data)
     queryClient.invalidateQueries({ queryKey: ["mineHistory", rigAddress] });
     queryClient.invalidateQueries({ queryKey: ["userRigStats", address, rigAddress] });
     queryClient.invalidateQueries({ queryKey: ["rig-leaderboard", rigAddress] });
@@ -310,11 +325,11 @@ export default function RigDetailPage() {
 
       if (receipt.status === "success") {
         setCustomMessage("");
-        // Invalidate immediately for instant feedback
-        invalidateMiningQueries();
-        // Retry after delays to handle subgraph indexing lag
-        setTimeout(invalidateMiningQueries, 2000);
-        setTimeout(invalidateMiningQueries, 5000);
+        // Small delay to let RPC sync the new block, then invalidate aggressively
+        setTimeout(invalidateMiningQueries, 500);
+        setTimeout(invalidateMiningQueries, 1500);
+        setTimeout(invalidateMiningQueries, 3000);
+        setTimeout(invalidateMiningQueries, 6000);
       } else {
         refetchRigState();
       }
